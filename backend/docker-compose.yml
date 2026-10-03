@@ -1,0 +1,22 @@
+version: "3.8"
+
+services:
+    db:
+        image: postgres:16-alpine
+        container_name: larovis_postgres
+        restart: always
+        # 👇 Aqui dizemos para o Docker olhar o arquivo .env do Laravel
+        env_file:
+            - .env
+        environment:
+            # 👇 Aqui o Docker mapeia o que está no .env para as variáveis que o Postgres exige
+            POSTGRES_DB: ${DB_DATABASE}
+            POSTGRES_USER: ${DB_USERNAME}
+            POSTGRES_PASSWORD: ${DB_PASSWORD}
+        ports:
+            - "5432:5432"
+        volumes:
+            - larovis_postgres_data:/var/lib/postgresql/data
+
+volumes:
+    larovis_postgres_data:
