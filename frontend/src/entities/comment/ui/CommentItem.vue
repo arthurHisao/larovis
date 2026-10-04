@@ -5,9 +5,18 @@ import AvatarFallback from "@/shared/ui/avatar/AvatarFallback.vue";
 import AvatarImage from "@/shared/ui/avatar/AvatarImage.vue";
 import type { Comment } from "../model/types";
 import CommentThreadList from "./CommentThreadList.vue"; // Importa a lista para continuar a árvore
-import { computed } from "vue";
+import { computed, ref } from "vue";
 import Badge from "@/shared/ui/badge/Badge.vue";
-import { AtSign, MoreHorizontal, Pencil, Trash } from "@lucide/vue";
+import {
+  AtSign,
+  Image,
+  MessageCircle,
+  MessageSquareReply,
+  MoreHorizontal,
+  Paperclip,
+  Pencil,
+  Trash,
+} from "@lucide/vue";
 import DropdownMenu from "@/shared/ui/dropdown-menu/DropdownMenu.vue";
 import DropdownMenuTrigger from "@/shared/ui/dropdown-menu/DropdownMenuTrigger.vue";
 import DropdownMenuContent from "@/shared/ui/dropdown-menu/DropdownMenuContent.vue";
@@ -16,6 +25,7 @@ import Button from "@/shared/ui/button/Button.vue";
 import DropdownMenuGroup from "@/shared/ui/dropdown-menu/DropdownMenuGroup.vue";
 import { MessageCircleWarning } from "lucide-vue-next";
 import { commentService } from "../api/comment-service.ts";
+import { Textarea } from "@/shared/ui/textarea";
 
 interface Props {
   comment: Comment;
@@ -30,8 +40,6 @@ const emit = defineEmits<{
 }>();
 
 const { comment, isLast, isRoot, depth = 0, isAuthor } = defineProps<Props>();
-
-// console.log("isLast ", isLast);
 
 const MAX_DEPTH = 3;
 
@@ -72,10 +80,46 @@ const commentClasses = computed(() => {
 
 const deletePost = async (commentId: number) => {
   try {
-    // await commentService.delete(commentId);
+    await commentService.delete(commentId);
     emit("delete", commentId);
   } catch (error) {
     console.error("Erro ao deletar comentário:", error);
+  }
+};
+
+const isReplyBoxOpen = ref([]);
+
+const toggleReplyBox = (commentId: number) => {
+  const currentIds = new Set(isReplyBoxOpen.value);
+
+  if (currentIds.has(commentId)) {
+    currentIds.delete(commentId);
+  } else {
+    currentIds.add(commentId);
+  }
+
+  isReplyBoxOpen.value = [...currentIds];
+};
+
+const isSubmitting = ref(false);
+const newCommentContent = ref("");
+
+const handleReply = async (postId, parentId) => {
+  console.log("newCommentContent ", newCommentContent);
+  if (!newCommentContent.value.trim() || isSubmitting.value) return;
+
+  try {
+    isSubmitting.value = true;
+    const createdComment = await commentService.create(postId, {
+      content: newCommentContent.value,
+      parent_id: parentId,
+    });
+
+    newCommentContent.value = "";
+  } catch (error) {
+    console.error("Erro ao comentar:", error);
+  } finally {
+    isSubmitting.value = false;
   }
 };
 </script>
@@ -142,10 +186,18 @@ const deletePost = async (commentId: number) => {
                 </DropdownMenuGroup>
 
                 <!-- Denunciar -->
-                <DropdownMenuGroup>
+                <DropdownMenuGroup v-if="!isAuthor">
                   <DropdownMenuItem>
                     <MessageCircleWarning />
                     Denunciar
+                  </DropdownMenuItem>
+                </DropdownMenuGroup>
+
+                <!-- Responder -->
+                <DropdownMenuGroup>
+                  <DropdownMenuItem @click="toggleReplyBox(comment?.id)">
+                    <MessageSquareReply />
+                    Responder
                   </DropdownMenuItem>
                 </DropdownMenuGroup>
               </DropdownMenuContent>
@@ -163,6 +215,69 @@ const deletePost = async (commentId: number) => {
         <p class="text-foreground/90 whitespace-pre-line">
           {{ comment.content }}
         </p>
+      </div>
+    </div>
+
+    <div
+      v-if="isReplyBoxOpen.includes(comment.id)"
+      :class="[
+        'relative pt-1 pb-10 pl-12 flex flex-wrap',
+        comment.replies?.length > 0
+          ? [
+              'before:absolute before:left-4.5 before:top-8 before:bottom-0 before:w-0.5 before:bg-border before:content-[\'\'] before:z-0',
+              'after:absolute after:left-4.5 after:-top-2 after:w-px after:h-full after:border-l-2 after:border-b after:border-border',
+            ]
+          : '',
+      ]"
+    >
+      <Textarea
+        v-model="newCommentContent"
+        :placeholder="'Insira a sua resposta'"
+        class="resize-none border-muted bg-muted/30 focus-visible:bg-background text-xs w-full"
+      />
+
+      <div
+        class="flex items-center justify-between pt-2 border-t border-border/60 w-full"
+      >
+        <div class="inline-flex gap-1 text-muted-foreground">
+          <Button
+            variant="ghost"
+            size="sm"
+            class="gap-2 text-xs"
+          >
+            <Image class="h-4 w-4 text-primary" />
+            Imagem
+          </Button>
+
+          <Button
+            variant="ghost"
+            size="sm"
+            class="gap-2 text-xs"
+          >
+            <Paperclip class="h-4 w-4 text-primary" />
+            Anexo
+          </Button>
+        </div>
+
+        <div class="inline-flex gap-3">
+          <Button
+            size="xs"
+            variant="outline"
+            class="text-xs px-3 py-3.5"
+            @click="toggleReplyBox(comment.id)"
+          >
+            Cancelar
+          </Button>
+
+          <Button
+            size="xs"
+            class="text-xs bg-slate-600 px-3 py-3.5"
+            :disabled="isSubmitting"
+            @click="handleReply(comment.postId, comment.parentId)"
+          >
+            {{ isSubmitting ? "Enviando..." : "Responder" }}
+          </Button>
+        </div>
       </div>
     </div>
 

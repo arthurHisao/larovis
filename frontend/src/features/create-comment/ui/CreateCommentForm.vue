@@ -42,11 +42,10 @@ const handleCreateComment = async () => {
 
   try {
     isSubmitting.value = true;
-    const createdComment = await commentService.create(
-      postId,
-      newCommentContent.value,
-    );
-    comments.value.push(createdComment);
+    const createdComment = await commentService.create(postId, {
+      content: newCommentContent.value,
+    });
+    comments.value.unshift(createdComment);
     newCommentContent.value = "";
   } catch (error) {
     console.error("Erro ao comentar:", error);
@@ -66,7 +65,7 @@ onMounted(() => {
     <div class="flex gap-3 relative">
       <Avatar class="h-10 w-10 shrink-0 z-10">
         <AvatarImage src="https://github.com/shadcn.png" />
-        <AvatarFallback>LV</AvatarFallback>
+        <AvatarFallback>AV</AvatarFallback>
       </Avatar>
 
       <div class="flex-1 space-y-3">
