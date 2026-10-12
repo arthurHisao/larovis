@@ -17,6 +17,7 @@ class PostCommentResource extends JsonResource
         return [
             'id'         => $this->id,
             'postId'     => $this->post_id,
+            'parent_id'  => $this->parent_id,
             'mention'    => $this->parent?->user?->name,
             'content'    => $this->comment,
             'createdAt'  => $this->created_at->diffForHumans(), // Transforma em "há 5 min"

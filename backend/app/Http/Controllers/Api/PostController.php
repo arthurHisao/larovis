@@ -40,6 +40,7 @@ class PostController extends Controller
             ->whereNull('parent_id')
             ->with([
                 'user', // Carrega autor do comentário principal
+                'parent.id',
                 'parent.user',
                 'repliesRecursive',
             ])
@@ -69,7 +70,7 @@ class PostController extends Controller
     public function storeComment(Request $request, Post $post) {
         $validated = $request->validate([
             'content'    => 'required|string|max:1000',
-            'parent_id'  => 'nullable|exists:comments,id',
+            'parent_id'  => 'nullable|exists:post_comments,id',
         ]);
 
         $comment = $post->comments()->create([

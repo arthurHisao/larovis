@@ -8,7 +8,7 @@ import { useAuthStore } from "@/entities/login/@x/comment";
 interface Props {
   comments: Comment[];
   isLoading?: boolean;
-  isRootList?: boolean; // Opcional: passe true apenas na primeira chamada lá no seu Card principal
+  // isRootList?: boolean; // Opcional: passe true apenas na primeira chamada lá no seu Card principal
   depth?: number;
 }
 const authStore = useAuthStore();
@@ -16,7 +16,7 @@ const authStore = useAuthStore();
 const {
   comments,
   isLoading = false,
-  isRootList = false,
+  // isRootList = false,
   depth = 0,
 } = defineProps<Props>();
 
@@ -50,16 +50,32 @@ const handleDelete = (commentId: number) => {
 
     <!-- Loop que renderiza cada linha de comentário -->
     <template v-else>
-      <CommentItem
-        v-for="(comment, index) in comments"
-        :key="comment.id"
-        :comment="comment"
-        :is-last="index === comments.length - 1"
-        :is-root="isRootList"
-        :depth="depth"
-        :is-author="comment?.author?.id === authStore?.user?.id"
-        @delete="handleDelete"
-      />
+      <div>
+        <CommentItem
+          v-for="(comment, index) in comments"
+          :key="comment.id"
+          :comment="comment"
+          :is-last="index === comments.length - 1"
+          :has-next-sibling="index < comments.length - 1"
+          :is-sibling="index === comments.length - 1 && comments.length >= 2"
+          :is-root="depth === 0"
+          :depth="depth"
+          :is-author="comment?.author?.id === authStore?.user?.id"
+          @delete="handleDelete"
+        />
+
+        <!-- <CommentItem
+          v-for="(comment, index) in comments"
+          :key="comment.id"
+          :comment="comment"
+          :is-last="index === comments.length - 1 && !comment.replies.length"
+          :is-siblings="index === comments.length - 1 && comments.length >= 2"
+          :is-root="!comment.parent_id"
+          :depth="depth"
+          :is-author="comment?.author?.id === authStore?.user?.id"
+          @delete="handleDelete"
+        /> -->
+      </div>
     </template>
   </div>
 </template>

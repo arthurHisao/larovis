@@ -113,7 +113,6 @@ onMounted(() => {
     <CommentThreadList
       :comments="comments"
       :is-loading="isLoading"
-      :is-root-list="true"
     />
   </Card>
 </template>

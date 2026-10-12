@@ -27,11 +27,22 @@ import { MessageCircleWarning } from "lucide-vue-next";
 import { commentService } from "../api/comment-service.ts";
 import { Textarea } from "@/shared/ui/textarea";
 
+// Antes
+// interface Props {
+//   comment: Comment;
+//   isLast: boolean;
+//   isRoot: boolean;
+//   depth?: number;
+//   isSiblings?: boolean;
+//   isAuthor: boolean;
+// }
 interface Props {
   comment: Comment;
   isLast: boolean;
   isRoot: boolean;
   depth?: number;
+  hasNextSibling: boolean;
+  isSibling?: boolean;
   isAuthor: boolean;
 }
 
@@ -39,9 +50,28 @@ const emit = defineEmits<{
   delete: [commentId: number];
 }>();
 
-const { comment, isLast, isRoot, depth = 0, isAuthor } = defineProps<Props>();
+// Antes
+// const {
+//   comment,
+//   isLast,
+//   isRoot,
+//   depth = 0,
+//   isSiblings = false,
+//   isAuthor,
+// } = defineProps<Props>();
+const {
+  comment,
+  isLast,
+  isRoot,
+  depth = 0,
+  hasNextSibling,
+  isSibling = false,
+  isAuthor,
+} = defineProps<Props>();
 
 const MAX_DEPTH = 3;
+
+// console.log("isLast ", isLast);
 
 const commentClasses = computed(() => {
   const classes = ["relative flex gap-3 text-xs group w-full pb-3 pl-1"];
@@ -52,8 +82,19 @@ const commentClasses = computed(() => {
     if (hasChildren) {
       classes.push(
         "before:absolute before:left-4.5 before:top-8 before:bottom-0 before:w-0.5 before:bg-border before:content-[''] before:z-0",
+        // "after:absolute after:left-4.5 after:-bottom-5.5 after:w-5.5 after:h-6 after:border-l-2 after:border-b-2 after:border-border after:rounded-bl-md",
       );
     }
+    return classes;
+  }
+  // Linha vertical filhos
+  if (hasChildren) {
+    classes.push(
+      "before:absolute before:left-4.5 before:top-8 before:bottom-0 before:w-0.5 before:bg-border before:content-[''] before:z-0",
+    );
+  }
+
+  if (isSibling) {
     return classes;
   }
 
@@ -68,16 +109,8 @@ const commentClasses = computed(() => {
     );
   }
 
-  // Linha vertical filhos
-  if (hasChildren) {
-    classes.push(
-      "before:absolute before:left-4.5 before:top-8 before:bottom-0 before:w-0.5 before:bg-border before:content-[''] before:z-0",
-    );
-  }
-
   return classes;
 });
-
 const deletePost = async (commentId: number) => {
   try {
     await commentService.delete(commentId);
@@ -125,7 +158,16 @@ const handleReply = async (postId, parentId) => {
 </script>
 
 <template>
-  <div :class="['relative flex flex-col w-full']">
+  <!-- Original -->
+  <!-- <div :class="['relative flex flex-col w-full']"> -->
+  <div
+    :class="[
+      'relative flex flex-col w-full',
+      !isRoot &&
+        hasNextSibling &&
+        'before:absolute before:left-4.5 before:top-10 before:bottom-0 before:w-0.5 before:bg-border before:content-[\'\'] before:z-0',
+    ]"
+  >
     <!-- Card do Comentário Atual -->
     <div :class="commentClasses">
       <!-- Avatar -->
@@ -273,13 +315,22 @@ const handleReply = async (postId, parentId) => {
             size="xs"
             class="text-xs bg-slate-600 px-3 py-3.5"
             :disabled="isSubmitting"
-            @click="handleReply(comment.postId, comment.parentId)"
+            @click="handleReply(comment.postId, comment.id)"
           >
             {{ isSubmitting ? "Enviando..." : "Responder" }}
           </Button>
         </div>
       </div>
     </div>
+
+    {{
+      console.log({
+        isLast: isLast,
+        comment,
+        hasNextSibling,
+        depth,
+      })
+    }}
 
     <!-- Comentário Filhos -->
     <CommentThreadList
