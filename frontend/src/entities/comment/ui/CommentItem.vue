@@ -27,18 +27,9 @@ import { MessageCircleWarning } from "lucide-vue-next";
 import { commentService } from "../api/comment-service.ts";
 import { Textarea } from "@/shared/ui/textarea";
 
-// Antes
-// interface Props {
-//   comment: Comment;
-//   isLast: boolean;
-//   isRoot: boolean;
-//   depth?: number;
-//   isSiblings?: boolean;
-//   isAuthor: boolean;
-// }
 interface Props {
   comment: Comment;
-  isLast: boolean;
+  isLast?: boolean;
   isRoot: boolean;
   depth?: number;
   hasNextSibling: boolean;
@@ -50,67 +41,46 @@ const emit = defineEmits<{
   delete: [commentId: number];
 }>();
 
-// Antes
-// const {
-//   comment,
-//   isLast,
-//   isRoot,
-//   depth = 0,
-//   isSiblings = false,
-//   isAuthor,
-// } = defineProps<Props>();
 const {
   comment,
-  isLast,
+  isLast = false,
   isRoot,
   depth = 0,
   hasNextSibling,
-  isSibling = false,
   isAuthor,
 } = defineProps<Props>();
 
-const MAX_DEPTH = 3;
-
-// console.log("isLast ", isLast);
+const MAX_DEPTH = 2;
 
 const commentClasses = computed(() => {
   const classes = ["relative flex gap-3 text-xs group w-full pb-3 pl-1"];
   const hasChildren = comment?.replies?.length > 0;
 
-  // Linha vertical Pai
-  if (isRoot) {
-    if (hasChildren) {
-      classes.push(
-        "before:absolute before:left-4.5 before:top-8 before:bottom-0 before:w-0.5 before:bg-border before:content-[''] before:z-0",
-        // "after:absolute after:left-4.5 after:-bottom-5.5 after:w-5.5 after:h-6 after:border-l-2 after:border-b-2 after:border-border after:rounded-bl-md",
-      );
-    }
-    return classes;
-  }
-  // Linha vertical filhos
+  // 1. LINHA VERTICAL PARA BAIXO (O Pai cria essa linha se ele tiver filhos)
   if (hasChildren) {
     classes.push(
       "before:absolute before:left-4.5 before:top-8 before:bottom-0 before:w-0.5 before:bg-border before:content-[''] before:z-0",
     );
   }
 
-  if (isSibling) {
-    return classes;
-  }
-
-  if (depth <= MAX_DEPTH) {
-    // Linha horizontal L
-    classes.push(
-      "after:absolute after:-left-3.5 after:-top-2 after:w-5.5 after:h-6 after:border-l-2 after:border-b-2 after:border-border after:rounded-bl-md",
-    );
-  } else {
-    classes.push(
-      "after:absolute after:left-4.5 after:-top-2 after:w-px after:h-6 after:border-l-2 after:border-b after:border-border",
-    );
+  // 2. CONECTOR LATERAL (A curva em L que conecta a resposta ao fluxo)
+  if (!isRoot) {
+    if (depth <= MAX_DEPTH) {
+      // Desenha a curva perfeita em L conectando o item à esquerda
+      classes.push(
+        "after:absolute after:-left-3.5 after:-top-2 after:w-5.5 after:h-6 after:border-l-2 after:border-b-2 after:border-border after:rounded-bl-md z-0",
+      );
+    } else {
+      // Se estourar a profundidade máxima, vira apenas uma linha discreta
+      classes.push(
+        "after:absolute after:left-4.5 after:-top-2 after:w-px after:h-6 after:border-l-2 after:border-b after:border-border",
+      );
+    }
   }
 
   return classes;
 });
+
 const deletePost = async (commentId: number) => {
   try {
     await commentService.delete(commentId);
@@ -158,14 +128,12 @@ const handleReply = async (postId, parentId) => {
 </script>
 
 <template>
-  <!-- Original -->
-  <!-- <div :class="['relative flex flex-col w-full']"> -->
   <div
     :class="[
       'relative flex flex-col w-full',
       !isRoot &&
         hasNextSibling &&
-        'before:absolute before:left-4.5 before:top-10 before:bottom-0 before:w-0.5 before:bg-border before:content-[\'\'] before:z-0',
+        'before:absolute before:-left-3.5 before:top-0 before:bottom-0 before:w-0.5 before:bg-border before:content-[\'\'] before:z-0',
     ]"
   >
     <!-- Card do Comentário Atual -->
@@ -322,15 +290,6 @@ const handleReply = async (postId, parentId) => {
         </div>
       </div>
     </div>
-
-    {{
-      console.log({
-        isLast: isLast,
-        comment,
-        hasNextSibling,
-        depth,
-      })
-    }}
 
     <!-- Comentário Filhos -->
     <CommentThreadList

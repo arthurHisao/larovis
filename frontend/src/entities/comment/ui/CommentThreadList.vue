@@ -57,24 +57,11 @@ const handleDelete = (commentId: number) => {
           :comment="comment"
           :is-last="index === comments.length - 1"
           :has-next-sibling="index < comments.length - 1"
-          :is-sibling="index === comments.length - 1 && comments.length >= 2"
           :is-root="depth === 0"
           :depth="depth"
           :is-author="comment?.author?.id === authStore?.user?.id"
           @delete="handleDelete"
         />
-
-        <!-- <CommentItem
-          v-for="(comment, index) in comments"
-          :key="comment.id"
-          :comment="comment"
-          :is-last="index === comments.length - 1 && !comment.replies.length"
-          :is-siblings="index === comments.length - 1 && comments.length >= 2"
-          :is-root="!comment.parent_id"
-          :depth="depth"
-          :is-author="comment?.author?.id === authStore?.user?.id"
-          @delete="handleDelete"
-        /> -->
       </div>
     </template>
   </div>
