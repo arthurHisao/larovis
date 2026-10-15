@@ -13,12 +13,7 @@ interface Props {
 }
 const authStore = useAuthStore();
 
-const {
-  comments,
-  isLoading = false,
-  // isRootList = false,
-  depth = 0,
-} = defineProps<Props>();
+const { comments, isLoading = false, depth = 0 } = defineProps<Props>();
 
 const handleDelete = (commentId: number) => {
   const index = comments.findIndex((comment) => comment.id === commentId);

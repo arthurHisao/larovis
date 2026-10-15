@@ -16,6 +16,7 @@ import {
   Paperclip,
   Pencil,
   Trash,
+  X,
 } from "@lucide/vue";
 import DropdownMenu from "@/shared/ui/dropdown-menu/DropdownMenu.vue";
 import DropdownMenuTrigger from "@/shared/ui/dropdown-menu/DropdownMenuTrigger.vue";
@@ -50,7 +51,7 @@ const {
   isAuthor,
 } = defineProps<Props>();
 
-const MAX_DEPTH = 2;
+const MAX_DEPTH = 3;
 
 const commentClasses = computed(() => {
   const classes = ["relative flex gap-3 text-xs group w-full pb-3 pl-1"];
@@ -65,6 +66,7 @@ const commentClasses = computed(() => {
 
   // 2. CONECTOR LATERAL (A curva em L que conecta a resposta ao fluxo)
   if (!isRoot) {
+    console.log("depth ", depth);
     if (depth <= MAX_DEPTH) {
       // Desenha a curva perfeita em L conectando o item à esquerda
       classes.push(
@@ -108,19 +110,26 @@ const isSubmitting = ref(false);
 const newCommentContent = ref("");
 
 const handleReply = async (postId, parentId) => {
-  console.log("newCommentContent ", newCommentContent);
   if (!newCommentContent.value.trim() || isSubmitting.value) return;
 
   try {
     isSubmitting.value = true;
+
     const createdComment = await commentService.create(postId, {
       content: newCommentContent.value,
       parent_id: parentId,
     });
 
+    if (!comment.replies) {
+      comment.replies = [];
+    }
+
+    comment.replies.push(createdComment);
+
     newCommentContent.value = "";
+    toggleReplyBox(parentId);
   } catch (error) {
-    console.error("Erro ao comentar:", error);
+    console.error("Erro ao responder o comentário:", error);
   } finally {
     isSubmitting.value = false;
   }
@@ -240,11 +249,36 @@ const handleReply = async (postId, parentId) => {
           : '',
       ]"
     >
-      <Textarea
-        v-model="newCommentContent"
-        :placeholder="'Insira a sua resposta'"
-        class="resize-none border-muted bg-muted/30 focus-visible:bg-background text-xs w-full"
-      />
+      <!-- Container do Input com todas as classes nativas do Shadcn UI Textarea + simulador de foco -->
+      <div
+        class="flex flex-wrap items-start gap-1.5 w-full min-h-16 rounded-md border border-muted bg-muted/30 px-3 py-1 text-xs shadow-xs transition-[color,box-shadow] outline-none placeholder:text-muted-foreground focus-within:border-ring focus-within:ring-ring/50 focus-within:ring-3 focus-within:bg-background aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        <!-- Tag / Badge da Menção estilo YouTube com botão de fechar -->
+        <Badge
+          class="inline-flex items-center gap-1 px-2 py-px rounded mt-0 text-xs font-medium bg-indigo-400 text-white border border-primary/20 shrink-0 select-none"
+        >
+          <AtSign class="size-3" />
+          <span class="text-[11px]">{{ comment.mention }}</span>
+
+          <Button
+            type="button"
+            variant="ghost"
+            class="rounded-full size-4 p-0! hover:bg-primary/20 hover:text-white/60 transition-colors"
+            aria-label="Remover menção"
+            @click="clearMention"
+          >
+            <X class="size-3" />
+          </Button>
+        </Badge>
+
+        <!-- Textarea transparente que ocupa o resto do espaço -->
+        <textarea
+          v-model="newCommentContent"
+          placeholder="Escreva a sua resposta..."
+          rows="1"
+          class="flex-1 bg-transparent border-none p-0 text-xs text-foreground placeholder:text-muted-foreground outline-none focus:outline-none focus:ring-0 focus-visible:ring-0 resize-none field-sizing-content min-w-[120px]"
+        />
+      </div>
 
       <div
         class="flex items-center justify-between pt-2 border-t border-border/60 w-full"

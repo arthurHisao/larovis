@@ -18,7 +18,8 @@ export const commentService = {
   async create(postId: number, sendData: Postdata): Promise<Comment> {
     console.log("sendData ", sendData);
 
-    const response = await api.post(`/posts/${postId}/comments`, { sendData });
+    const toJson = JSON.stringify(sendData);
+    const response = await api.post(`/posts/${postId}/comments`, toJson);
     return response.data;
   },
 
