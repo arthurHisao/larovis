@@ -10,13 +10,11 @@ import Badge from "@/shared/ui/badge/Badge.vue";
 import {
   AtSign,
   Image,
-  MessageCircle,
   MessageSquareReply,
   MoreHorizontal,
   Paperclip,
   Pencil,
   Trash,
-  X,
 } from "@lucide/vue";
 import DropdownMenu from "@/shared/ui/dropdown-menu/DropdownMenu.vue";
 import DropdownMenuTrigger from "@/shared/ui/dropdown-menu/DropdownMenuTrigger.vue";
@@ -26,7 +24,6 @@ import Button from "@/shared/ui/button/Button.vue";
 import DropdownMenuGroup from "@/shared/ui/dropdown-menu/DropdownMenuGroup.vue";
 import { MessageCircleWarning } from "lucide-vue-next";
 import { commentService } from "../api/comment-service.ts";
-import { Textarea } from "@/shared/ui/textarea";
 
 interface Props {
   comment: Comment;
@@ -249,34 +246,24 @@ const handleReply = async (postId, parentId) => {
           : '',
       ]"
     >
-      <!-- Container do Input com todas as classes nativas do Shadcn UI Textarea + simulador de foco -->
+      <!-- Container com layout vertical (flex-col) -->
       <div
-        class="flex flex-wrap items-start gap-1.5 w-full min-h-16 rounded-md border border-muted bg-muted/30 px-3 py-1 text-xs shadow-xs transition-[color,box-shadow] outline-none placeholder:text-muted-foreground focus-within:border-ring focus-within:ring-ring/50 focus-within:ring-3 focus-within:bg-background aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive disabled:cursor-not-allowed disabled:opacity-50"
+        class="flex flex-col items-start gap-2 w-full min-h-20 rounded-md border border-muted bg-muted/30 px-3 py-2.5 text-xs shadow-xs transition-[color,box-shadow] outline-none placeholder:text-muted-foreground focus-within:border-ring focus-within:ring-ring/50 focus-within:ring-3 focus-within:bg-background aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive disabled:cursor-not-allowed disabled:opacity-50"
       >
-        <!-- Tag / Badge da Menção estilo YouTube com botão de fechar -->
+        <!-- Tag / Badge da Menção no topo -->
         <Badge
-          class="inline-flex items-center gap-1 px-2 py-px rounded mt-0 text-xs font-medium bg-indigo-400 text-white border border-primary/20 shrink-0 select-none"
+          class="inline-flex items-center px-1 py-0.5 rounded text-xs font-medium bg-primary/10 text-primary border border-primary/20 shrink-0 select-none"
         >
           <AtSign class="size-3" />
-          <span class="text-[11px]">{{ comment.mention }}</span>
-
-          <Button
-            type="button"
-            variant="ghost"
-            class="rounded-full size-4 p-0! hover:bg-primary/20 hover:text-white/60 transition-colors"
-            aria-label="Remover menção"
-            @click="clearMention"
-          >
-            <X class="size-3" />
-          </Button>
+          <span class="text-xs">{{ comment.mention }}</span>
         </Badge>
 
-        <!-- Textarea transparente que ocupa o resto do espaço -->
+        <!-- Textarea ocupa 100% da largura abaixo da Badge -->
         <textarea
           v-model="newCommentContent"
           placeholder="Escreva a sua resposta..."
-          rows="1"
-          class="flex-1 bg-transparent border-none p-0 text-xs text-foreground placeholder:text-muted-foreground outline-none focus:outline-none focus:ring-0 focus-visible:ring-0 resize-none field-sizing-content min-w-[120px]"
+          rows="2"
+          class="w-full bg-transparent border-none p-0 text-xs text-foreground placeholder:text-muted-foreground outline-none focus:outline-none focus:ring-0 focus-visible:ring-0 resize-none field-sizing-content min-h-[36px]"
         />
       </div>
 

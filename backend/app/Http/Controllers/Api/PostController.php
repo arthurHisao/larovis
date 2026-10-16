@@ -53,7 +53,7 @@ class PostController extends Controller
     {
         /**
          * @todo Substituir pelo id do usuário quando implementar a autenticação */
-        $userId = $request->user()?->id ?? 1;
+        $userId = $request->user()->id;
 
         $like = $post->likes()->where('user_id', $userId)->first();
 

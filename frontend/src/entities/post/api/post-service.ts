@@ -1,5 +1,5 @@
 import { api } from "@/shared/api/axios";
-import type { Post } from "../model/types";
+import type { Post, Like } from "../model/types";
 
 export const postService = {
   // GET /api/posts
@@ -15,7 +15,8 @@ export const postService = {
   },
 
   // POST /api/posts/{id}/like
-  async toggleLike(postId: number): Promise<void> {
-    await api.post(`/posts/${postId}/like`);
+  async toggleLike(postId: number): Promise<Like> {
+    const response = await api.post(`/posts/${postId}/like`);
+    return response.data;
   },
 };
