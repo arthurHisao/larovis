@@ -186,7 +186,7 @@ const toggleCommentBox = () => {
     />
 
     <Button
-      v-if="isCommentBoxExpanded"
+      v-if="isCommentBoxExpanded && post.commentsCount > 0"
       variant="ghost"
       class="w-50 mx-auto text-muted-foreground cursor-pointer"
       :aria-expanded="isCommentBoxExpanded"

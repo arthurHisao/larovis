@@ -1,7 +1,7 @@
 import { ref } from "vue";
 import { useRouter } from "vue-router";
-import { authApi } from "@/entities/login/api/auth.api";
-import { useAuthStore } from "@/entities/login/model/auth.store";
+import { authApi } from "@/entities/user/api/auth.api";
+import { useAuthStore } from "@/entities/user/model/auth.store";
 
 export function useLogin() {
   const router = useRouter();

@@ -3,12 +3,11 @@
 import Skeleton from "@/shared/ui/skeleton/Skeleton.vue";
 import CommentItem from "./CommentItem.vue";
 import type { Comment } from "../model/types";
-import { useAuthStore } from "@/entities/login/@x/comment";
+import { useAuthStore } from "@/entities/user/@x/comment.ts";
 
 interface Props {
   comments: Comment[];
   isLoading?: boolean;
-  // isRootList?: boolean; // Opcional: passe true apenas na primeira chamada lá no seu Card principal
   depth?: number;
 }
 const authStore = useAuthStore();

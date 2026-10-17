@@ -1,10 +1,6 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
+import { onMounted, ref } from "vue";
 import { Paperclip, Image } from "lucide-vue-next";
-
-import Avatar from "@/shared/ui/avatar/Avatar.vue";
-import AvatarFallback from "@/shared/ui/avatar/AvatarFallback.vue";
-import AvatarImage from "@/shared/ui/avatar/AvatarImage.vue";
 import Textarea from "@/shared/ui/textarea/Textarea.vue";
 import Card from "@/shared/ui/card/Card.vue";
 import { Button } from "@/shared/ui/button";
@@ -12,6 +8,7 @@ import { Button } from "@/shared/ui/button";
 import type { Comment } from "@/entities/comment/model/types";
 import { commentService } from "@/entities/comment/api/comment-service";
 import CommentThreadList from "@/entities/comment/ui/CommentThreadList.vue";
+import UserAvatar from "@/entities/user/ui/UserAvatar.vue";
 
 interface Props {
   postId: number;
@@ -63,10 +60,7 @@ onMounted(() => {
   <Card class="p-4 border-border bg-card space-y-4">
     <!-- Formulário de Comentário -->
     <div class="flex gap-3 relative">
-      <Avatar class="h-10 w-10 shrink-0 z-10">
-        <AvatarImage src="https://github.com/shadcn.png" />
-        <AvatarFallback>AV</AvatarFallback>
-      </Avatar>
+      <UserAvatar class="h-10 w-10 shrink-0 z-10" />
 
       <div class="flex-1 space-y-3">
         <Textarea
@@ -79,7 +73,7 @@ onMounted(() => {
         <div
           class="flex items-center justify-between pt-2 border-t border-border/60"
         >
-          <div class="flex gap-1 text-muted-foreground">
+          <!-- <div class="flex gap-1 text-muted-foreground">
             <Button
               variant="ghost"
               size="sm"
@@ -96,7 +90,7 @@ onMounted(() => {
               <Paperclip class="h-4 w-4 text-primary" />
               Anexo
             </Button>
-          </div>
+          </div> -->
           <Button
             size="sm"
             class="px-5 text-xs"

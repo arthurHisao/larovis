@@ -7,23 +7,10 @@ import type { Comment } from "../model/types";
 import CommentThreadList from "./CommentThreadList.vue"; // Importa a lista para continuar a árvore
 import { computed, ref } from "vue";
 import Badge from "@/shared/ui/badge/Badge.vue";
-import {
-  AtSign,
-  Image,
-  MessageSquareReply,
-  MoreHorizontal,
-  Paperclip,
-  Pencil,
-  Trash,
-} from "@lucide/vue";
-import DropdownMenu from "@/shared/ui/dropdown-menu/DropdownMenu.vue";
-import DropdownMenuTrigger from "@/shared/ui/dropdown-menu/DropdownMenuTrigger.vue";
-import DropdownMenuContent from "@/shared/ui/dropdown-menu/DropdownMenuContent.vue";
-import DropdownMenuItem from "@/shared/ui/dropdown-menu/DropdownMenuItem.vue";
-import Button from "@/shared/ui/button/Button.vue";
-import DropdownMenuGroup from "@/shared/ui/dropdown-menu/DropdownMenuGroup.vue";
-import { MessageCircleWarning } from "lucide-vue-next";
+import { AtSign } from "@lucide/vue";
 import { commentService } from "../api/comment-service.ts";
+import CommentReplyBox from "./CommentReplyBox.vue";
+import CommentActionsMenu from "./CommentActionsMenu.vue";
 
 interface Props {
   comment: Comment;
@@ -63,7 +50,6 @@ const commentClasses = computed(() => {
 
   // 2. CONECTOR LATERAL (A curva em L que conecta a resposta ao fluxo)
   if (!isRoot) {
-    console.log("depth ", depth);
     if (depth <= MAX_DEPTH) {
       // Desenha a curva perfeita em L conectando o item à esquerda
       classes.push(
@@ -89,7 +75,7 @@ const deletePost = async (commentId: number) => {
   }
 };
 
-const isReplyBoxOpen = ref([]);
+const isReplyBoxOpen = ref<number[]>([]);
 
 const toggleReplyBox = (commentId: number) => {
   const currentIds = new Set(isReplyBoxOpen.value);
@@ -103,33 +89,12 @@ const toggleReplyBox = (commentId: number) => {
   isReplyBoxOpen.value = [...currentIds];
 };
 
-const isSubmitting = ref(false);
-const newCommentContent = ref("");
-
-const handleReply = async (postId, parentId) => {
-  if (!newCommentContent.value.trim() || isSubmitting.value) return;
-
-  try {
-    isSubmitting.value = true;
-
-    const createdComment = await commentService.create(postId, {
-      content: newCommentContent.value,
-      parent_id: parentId,
-    });
-
-    if (!comment.replies) {
-      comment.replies = [];
-    }
-
-    comment.replies.push(createdComment);
-
-    newCommentContent.value = "";
-    toggleReplyBox(parentId);
-  } catch (error) {
-    console.error("Erro ao responder o comentário:", error);
-  } finally {
-    isSubmitting.value = false;
-  }
+const handleReplyCreated = (createdComment: Comment) => {
+  if (!comment.replies) comment.replies = [];
+  comment.replies.push(createdComment);
+  isReplyBoxOpen.value = isReplyBoxOpen.value.filter(
+    (commentId) => commentId !== comment.id,
+  );
 };
 </script>
 
@@ -169,55 +134,11 @@ const handleReply = async (postId, parentId) => {
               {{ comment.createdAt }}
             </span>
 
-            <DropdownMenu>
-              <DropdownMenuTrigger as-child>
-                <Button
-                  size="sm"
-                  aria-label="Expandir ações sob o comentário"
-                  variant="outline"
-                  class="rounded-full h-5.5! w-5.5! p-0 bg-muted hover:bg-muted/40 focus:outline-none border border-transparent outline-none data-[state=open]:ring-4 data-[state=open]:ring-gray-400/70 data-[state=open]:border-gray-300 focus-visible:ring-4 focus-visible:ring-gray-400/70 focus-visible:border-gray-300"
-                >
-                  <MoreHorizontal class="size-3" />
-                </Button>
-              </DropdownMenuTrigger>
-
-              <DropdownMenuContent
-                class="w-40"
-                align="start"
-              >
-                <!-- Editar -->
-                <DropdownMenuGroup v-if="isAuthor">
-                  <DropdownMenuItem>
-                    <Pencil />
-                    Editar
-                  </DropdownMenuItem>
-                </DropdownMenuGroup>
-
-                <!-- Deletar -->
-                <DropdownMenuGroup v-if="isAuthor">
-                  <DropdownMenuItem @click="deletePost(comment?.id)">
-                    <Trash />
-                    Deletar
-                  </DropdownMenuItem>
-                </DropdownMenuGroup>
-
-                <!-- Denunciar -->
-                <DropdownMenuGroup v-if="!isAuthor">
-                  <DropdownMenuItem>
-                    <MessageCircleWarning />
-                    Denunciar
-                  </DropdownMenuItem>
-                </DropdownMenuGroup>
-
-                <!-- Responder -->
-                <DropdownMenuGroup>
-                  <DropdownMenuItem @click="toggleReplyBox(comment?.id)">
-                    <MessageSquareReply />
-                    Responder
-                  </DropdownMenuItem>
-                </DropdownMenuGroup>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <CommentActionsMenu
+              :is-author="isAuthor"
+              @delete="deletePost(comment?.id)"
+              @toggle-reply="toggleReplyBox(comment?.id)"
+            />
           </div>
         </div>
 
@@ -234,83 +155,12 @@ const handleReply = async (postId, parentId) => {
       </div>
     </div>
 
-    <div
+    <CommentReplyBox
       v-if="isReplyBoxOpen.includes(comment.id)"
-      :class="[
-        'relative pt-1 pb-10 pl-12 flex flex-wrap',
-        comment.replies?.length > 0
-          ? [
-              'before:absolute before:left-4.5 before:top-8 before:bottom-0 before:w-0.5 before:bg-border before:content-[\'\'] before:z-0',
-              'after:absolute after:left-4.5 after:-top-2 after:w-px after:h-full after:border-l-2 after:border-b after:border-border',
-            ]
-          : '',
-      ]"
-    >
-      <!-- Container com layout vertical (flex-col) -->
-      <div
-        class="flex flex-col items-start gap-2 w-full min-h-20 rounded-md border border-muted bg-muted/30 px-3 py-2.5 text-xs shadow-xs transition-[color,box-shadow] outline-none placeholder:text-muted-foreground focus-within:border-ring focus-within:ring-ring/50 focus-within:ring-3 focus-within:bg-background aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive disabled:cursor-not-allowed disabled:opacity-50"
-      >
-        <!-- Tag / Badge da Menção no topo -->
-        <Badge
-          class="inline-flex items-center px-1 py-0.5 rounded text-xs font-medium bg-primary/10 text-primary border border-primary/20 shrink-0 select-none"
-        >
-          <AtSign class="size-3" />
-          <span class="text-xs">{{ comment.mention }}</span>
-        </Badge>
-
-        <!-- Textarea ocupa 100% da largura abaixo da Badge -->
-        <textarea
-          v-model="newCommentContent"
-          placeholder="Escreva a sua resposta..."
-          rows="2"
-          class="w-full bg-transparent border-none p-0 text-xs text-foreground placeholder:text-muted-foreground outline-none focus:outline-none focus:ring-0 focus-visible:ring-0 resize-none field-sizing-content min-h-[36px]"
-        />
-      </div>
-
-      <div
-        class="flex items-center justify-between pt-2 border-t border-border/60 w-full"
-      >
-        <div class="inline-flex gap-1 text-muted-foreground">
-          <Button
-            variant="ghost"
-            size="sm"
-            class="gap-2 text-xs"
-          >
-            <Image class="h-4 w-4 text-primary" />
-            Imagem
-          </Button>
-
-          <Button
-            variant="ghost"
-            size="sm"
-            class="gap-2 text-xs"
-          >
-            <Paperclip class="h-4 w-4 text-primary" />
-            Anexo
-          </Button>
-        </div>
-
-        <div class="inline-flex gap-3">
-          <Button
-            size="xs"
-            variant="outline"
-            class="text-xs px-3 py-3.5"
-            @click="toggleReplyBox(comment.id)"
-          >
-            Cancelar
-          </Button>
-
-          <Button
-            size="xs"
-            class="text-xs bg-slate-600 px-3 py-3.5"
-            :disabled="isSubmitting"
-            @click="handleReply(comment.postId, comment.id)"
-          >
-            {{ isSubmitting ? "Enviando..." : "Responder" }}
-          </Button>
-        </div>
-      </div>
-    </div>
+      :comment="comment"
+      @reply-created="handleReplyCreated"
+      @cancel="toggleReplyBox(comment.id)"
+    />
 
     <!-- Comentário Filhos -->
     <CommentThreadList

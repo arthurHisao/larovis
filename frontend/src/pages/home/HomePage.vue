@@ -13,17 +13,12 @@ import ChatWidget from "@/widgets/chat-widget/ui/ChatWidget.vue";
 
 import { postService } from "@/entities/post/api/post-service";
 
-// Estado reativo dos posts mockados
-// const posts = ref<Post[]>(mockPosts)
 const posts = ref<Post[]>();
 const isLoading = ref(true);
-// const newPostContent = ref('')
 
 // Ação de simulação para o Like
 const handleToggleLike = async (postId: number) => {
   const like = await postService.toggleLike(postId);
-
-  console.log("like is ", like);
   const post = posts?.value.find((p) => p.id === postId);
   if (post) {
     post.isLiked = !post.isLiked;
@@ -42,39 +37,6 @@ const fetchPosts = async () => {
     isLoading.value = false;
   }
 };
-
-// Criar nova publicação no Laravel
-// const handleCreatePost = async () => {
-//     if (!newPostContent.value.trim()) return
-
-//     try {
-//         const createdPost = await postService.create(newPostContent.value)
-//         posts.value.unshift(createdPost)
-//         newPostContent.value = ''
-//     } catch (error) {
-//         console.error('Erro ao publicar:', error)
-//     }
-// }
-
-// Toggle Like
-// const handleToggleLike = async (postId: number) => {
-//     // Atualização otimista na interface
-//     const post = posts.value.find(p => p.id === postId)
-//     if (post) {
-//         post.isLiked = !post.isLiked
-//         post.likesCount += post.isLiked ? 1 : -1
-//     }
-
-//     try {
-//         await postService.toggleLike(postId)
-//     } catch (error) {
-//         // Reverte em caso de erro na API
-//         if (post) {
-//             post.isLiked = !post.isLiked
-//             post.likesCount += post.isLiked ? 1 : -1
-//         }
-//     }
-// }
 
 onMounted(() => {
   fetchPosts();

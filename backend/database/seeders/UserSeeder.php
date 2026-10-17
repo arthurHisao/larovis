@@ -24,7 +24,7 @@ class UserSeeder extends Seeder
             'name' => 'Mariana Silva',
             'email' => 'mariana.rh@larovis.com',
             'password' => Hash::make('12345678'),
-            'avatar' => 'https://unsplash.com', // Moça de vermelho
+            'avatar' => 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&h=200&fit=crop&crop=faces',
             'department_id' => $rh->id,
         ]);
 
@@ -32,7 +32,7 @@ class UserSeeder extends Seeder
             'name' => 'Arthur',
             'email' => 'dev@larovis.com',
             'password' => Hash::make('12345678'),
-            'avatar' => null,
+            'avatar' => 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=200&h=200&fit=crop&crop=faces',
             'department_id' => $ti->id,
         ]);
 
@@ -40,7 +40,7 @@ class UserSeeder extends Seeder
             'name' => 'Lucas Mendes',
             'email' => 'lucas.comercial@larovis.com',
             'password' => Hash::make('12345678'),
-            'avatar' => 'https://picsum.photos' . rand(1, 1000), // Rapaz de branco
+            'avatar' => 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=200&h=200&fit=crop&crop=faces',
             'department_id' => $comercial->id,
         ]);
 
@@ -49,7 +49,7 @@ class UserSeeder extends Seeder
             'name' => 'Ana Souza', 
             'email' => 'ana@larovis.com', 
             'password' => Hash::make('12345678'), 
-            'avatar' => 'https://picsum.photos' . rand(1, 1000), // Avatar feminino casual (RH)
+            'avatar' => 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100', // Avatar feminino casual (RH)
             'department_id' => $rh->id
         ]);
 
@@ -57,7 +57,7 @@ class UserSeeder extends Seeder
             'name' => 'Bruno Reis', 
             'email' => 'bruno@larovis.com', 
             'password' => Hash::make('12345678'), 
-            'avatar' => 'https://picsum.photos' . rand(1, 1000), // Homem jovem de terno (Financeiro)
+            'avatar' => 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&h=200&fit=crop&crop=faces',
             'department_id' => $financeiro->id
         ]);
 
@@ -65,7 +65,7 @@ class UserSeeder extends Seeder
             'name' => 'Carlos Lima', 
             'email' => 'carlos@larovis.com', 
             'password' => Hash::make('12345678'), 
-            'avatar' => 'https://picsum.photos' . rand(1, 1000), // Jovem sorrindo (TI que defende o sistema)
+            'avatar' => 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200&h=200&fit=crop&crop=faces',
             'department_id' => $ti->id
         ]);
 
@@ -73,7 +73,7 @@ class UserSeeder extends Seeder
             'name' => 'Valdir Fiscal do Óbvio', 
             'email' => 'valdir@larovis.com', 
             'password' => Hash::make('12345678'), 
-            'avatar' => 'https://picsum.photos' . rand(1, 1000), // Homem de óculos sério corporativo (O Valdir)
+            'avatar' => asset('storage/avatars/valdir.jpg'), // Valdir, homem mais velho
             'department_id' => $almoxarifado->id
         ]);
 
@@ -81,7 +81,7 @@ class UserSeeder extends Seeder
             'name' => 'Lucas Dev Pipoca', 
             'email' => 'lucas.pipoca@larovis.com', 
             'password' => Hash::make('12345678'), 
-            'avatar' => 'https://picsum.photos' . rand(1, 1000), // Jovem de camisa descontraído (TI da treta)
+            'avatar' => 'https://images.unsplash.com/photo-1527980965255-d3b416303d12?w=200&h=200&fit=crop&crop=faces',
             'department_id' => $ti->id
         ]);
 
@@ -89,7 +89,7 @@ class UserSeeder extends Seeder
             'name' => 'Sr. Moacyr Almoxarifado', 
             'email' => 'moacyr@larovis.com', 
             'password' => Hash::make('12345678'), 
-            'avatar' => 'https://picsum.photos' . rand(1, 1000), // Senhor mais velho (Moacyr do cartão de papel)
+            'avatar' => asset('storage/avatars/moacyr.jpg'), // Moacyr, homem mais velho
             'department_id' => $almoxarifado->id
         ]);
 

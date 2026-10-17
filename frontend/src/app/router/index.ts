@@ -6,7 +6,7 @@ import {
 
 // As páginas são importadas da camada 'pages'
 import LoginPage from "@/pages/login/LoginPage.vue";
-import { useAuthStore } from "@/entities/login/model/auth.store";
+import { useAuthStore } from "@/entities/user/model/auth.store";
 
 const routes: Array<RouteRecordRaw> = [
   {
