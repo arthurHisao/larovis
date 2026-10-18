@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\MessageController;
 use App\Http\Controllers\Api\PostController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -38,6 +39,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/posts/{post}/comments', [PostController::class, 'storeComment']);
     Route::get('/posts/{post}/comments', [PostController::class, 'getPostComments']);
     Route::delete('/comments/{comment}', [PostController::class, 'destroyComment']);
+
+    // Chat
+    Route::get('/messages', [MessageController::class, 'index']);
+    Route::get('/messages/{user}', [MessageController::class, 'show']);
+
     // Logout
     Route::post('/logout', [AuthController::class, 'logout']);
 });

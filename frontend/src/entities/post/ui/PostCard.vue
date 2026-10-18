@@ -13,7 +13,7 @@ import { Button } from "@/shared/ui/button";
 import { Avatar, AvatarImage, AvatarFallback } from "@/shared/ui/avatar";
 import CreateCommentForm from "@/features/create-comment/ui/CreateCommentForm.vue";
 import Skeleton from "@/shared/ui/skeleton/Skeleton.vue";
-import { ArrowUp, ChevronUp } from "@lucide/vue";
+import { ArrowUp } from "@lucide/vue";
 
 defineProps<{
   post?: Post;

@@ -159,8 +159,8 @@ const handleLogout = async () => {
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem
-              @click="handleLogout"
               class="text-destructive focus:text-destructive"
+              @click="handleLogout"
             >
               <LogOut class="mr-2 h-4 w-4" />
               <span>Sair</span>
