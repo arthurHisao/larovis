@@ -1,5 +1,16 @@
 import axios from "axios";
 
+export const web = axios.create({
+  baseURL: import.meta.env.VITE_WEB_URL || "http://localhost:8000",
+  withCredentials: true,
+  withXSRFToken: true,
+
+  headers: {
+    "Content-Type": "application/json",
+    Accept: "application/json",
+  },
+});
+
 export const api = axios.create({
   // Aponta para a porta do Laravel (substitua conforme seu ambiente)
   baseURL: import.meta.env.VITE_API_URL || "http://localhost:8000/api",

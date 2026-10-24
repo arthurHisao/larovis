@@ -11,4 +11,12 @@ export const messageApi = {
     const response = await api.get<ChatMessage[]>(`/messages/${userId}`);
     return response.data;
   },
+
+  async sendMessage(receiverId: number, text: string): Promise<ChatMessage> {
+    const response = await api.post<ChatMessage>("/messages", {
+      receiver_id: receiverId,
+      text,
+    });
+    return response.data;
+  },
 };

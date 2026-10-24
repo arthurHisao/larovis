@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref, nextTick } from "vue";
+import { onMounted, ref, nextTick, watch } from "vue";
 import {
   MessageCircle,
   ChevronUp,
@@ -15,6 +15,7 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/shared/ui/avatar";
 import { useAuthStore } from "@/entities/user/model/auth.store";
 import { useMessageStore } from "@/entities/message/model/message.store";
 import type { ChatMessage, ChatUser } from "@/entities/message/model/types";
+import { useChatSocket } from "@/features/send-message/model/useChatSocket";
 
 // Controle do Widget Principal (Lista de Contatos)
 const isListOpen = ref(false);
@@ -76,37 +77,52 @@ const closeChat = (userId: number) => {
 };
 
 // Envia mensagem na aba específica
-const sendMessage = (userId: number) => {
+// const sendMessage = (userId: number) => {
+//   const text = draftMessages.value[userId]?.trim();
+//   if (!text) return;
+
+//   const senderId = authStore.user?.id;
+//   if (senderId == null) {
+//     console.error(
+//       "Não foi possível enviar a mensagem: usuário não autenticado.",
+//     );
+//     return;
+//   }
+
+//   const now = new Date().toLocaleTimeString([], {
+//     hour: "2-digit",
+//     minute: "2-digit",
+//   });
+
+//   const conversation =
+//     messageStore.conversations[userId] ??
+//     (messageStore.conversations[userId] = []);
+
+//   conversation.push({
+//     id: Date.now(),
+//     senderId,
+//     text,
+//     time: now,
+//     refer: [],
+//   });
+
+//   draftMessages.value[userId] = "";
+//   scrollToBottom(userId);
+// };
+useChatSocket();
+
+const sendMessage = async (userId: number) => {
   const text = draftMessages.value[userId]?.trim();
   if (!text) return;
 
-  const senderId = authStore.user?.id;
-  if (senderId == null) {
-    console.error(
-      "Não foi possível enviar a mensagem: usuário não autenticado.",
-    );
-    return;
+  try {
+    // Envia via store (que chama a API POST /messages)
+    await messageStore.sendMessage(userId, text);
+    draftMessages.value[userId] = "";
+    scrollToBottom(userId);
+  } catch (error) {
+    console.error("Erro ao enviar mensagem:", error);
   }
-
-  const now = new Date().toLocaleTimeString([], {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-
-  const conversation =
-    messageStore.conversations[userId] ??
-    (messageStore.conversations[userId] = []);
-
-  conversation.push({
-    id: Date.now(),
-    senderId,
-    text,
-    time: now,
-    refer: [],
-  });
-
-  draftMessages.value[userId] = "";
-  scrollToBottom(userId);
 };
 
 const scrollToBottom = (userId: number) => {
@@ -117,6 +133,18 @@ const scrollToBottom = (userId: number) => {
     }
   });
 };
+
+watch(
+  () => messageStore.conversations,
+  (conversations) => {
+    for (const userId of activeChatUserIds.value) {
+      if (conversations[userId]) {
+        scrollToBottom(userId);
+      }
+    }
+  },
+  { deep: true, flush: "post" },
+);
 
 // Helper para pegar objeto do usuário por ID
 const getUser = (id: number) =>
@@ -195,7 +223,10 @@ const getMessageUser = (message: ChatMessage) =>
             Nenhuma conversa encontrada.
           </p>
 
-          <div v-else class="space-y-1">
+          <div
+            v-else
+            class="space-y-1"
+          >
             <div
               v-for="user in messageStore.onlineUsers"
               :key="user.id"
@@ -327,7 +358,7 @@ const getMessageUser = (message: ChatMessage) =>
                 :class="isOwnMessage(msg) ? 'items-end' : 'items-start'"
               >
                 <!-- Resposta -->
-                <div v-if="msg?.refer.length > 0">
+                <div v-if="msg?.refer && msg?.refer.length > 0">
                   <div
                     :class="[
                       'p-2 text-xs',

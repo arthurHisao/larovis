@@ -43,6 +43,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // Chat
     Route::get('/messages', [MessageController::class, 'index']);
     Route::get('/messages/{user}', [MessageController::class, 'show']);
+    Route::post('/messages', [MessageController::class, 'store']);
 
     // Logout
     Route::post('/logout', [AuthController::class, 'logout']);
