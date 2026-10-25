@@ -1,30 +1,33 @@
-import { onMounted, onUnmounted } from "vue";
-import { useAuthStore } from "@/entities/user/model/auth.store";
 import { useMessageStore } from "@/entities/message/model/message.store";
+import type { ChatMessage, ChatUser } from "@/entities/message/model/types";
+import type Echo from "laravel-echo";
 
-export function useChatSocket(receiverId: number) {
-  const authStore = useAuthStore();
+export function subscribeToChatSocket(echo: Echo<"reverb">, userId: number) {
   const messageStore = useMessageStore();
 
-  onMounted(() => {
-    const userId = authStore.user?.id;
-    if (!userId) return;
+  echo
+    .private(`chat.${userId}`)
+    .listen(".message.sent", (event: { message: ChatMessage }) => {
+      messageStore.addIncomingMessage(event.message);
+    });
 
-    // Escuta o canal privado do utilizador configurado no Laravel: 'chat.{id}'
-    window.Echo.private(`chat.${userId}`).listen(
-      ".message.sent",
-      (event: { message: any }) => {
-        console.log("📥 Mensagem recebida em tempo real via Reverb!", event);
-        // Quando o Reverb recebe o evento, injeta direto na store
-        messageStore.addIncomingMessage(event.message);
-      },
-    );
-  });
+  echo
+    .join("online-users")
+    .here((users: ChatUser[]) => {
+      messageStore.setOnlineUsers(users.filter((user) => user.id !== userId));
+    })
+    .joining((user: ChatUser) => {
+      if (user.id !== userId) {
+        messageStore.addOnlineUser(user);
+      }
+    })
+    .leaving((user: ChatUser) => {
+      messageStore.removeOnlineUser(user.id);
+    });
 
-  onUnmounted(() => {
-    const userId = authStore.user?.id;
-    if (userId) {
-      window.Echo.leave(`chat.${userId}`);
-    }
-  });
+  return () => {
+    echo.leave(`chat.${userId}`);
+    echo.leave("online-users");
+    messageStore.clearOnlineUsers();
+  };
 }

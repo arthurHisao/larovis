@@ -41,7 +41,7 @@ export const router = createRouter({
 });
 
 // Middleware de autenticação simples
-router.beforeEach(async (to, _from, next) => {
+router.beforeEach(async (to, _from) => {
   const authStore = useAuthStore();
 
   // 1. Se é a primeira carga de página (F5 ou abertura), aguarda o Sanctum confirmar a sessão no backend
@@ -54,14 +54,14 @@ router.beforeEach(async (to, _from, next) => {
 
   // 2. Rota exige autenticação e o usuário NÃO está logado
   if (to.meta.requiresAuth && !isAuth) {
-    return next({ name: "login" });
+    return { name: "login" };
   }
 
   // 3. Usuário TENTA ir para a página de login mas JÁ ESTÁ logado
   if (isLoginPage && isAuth) {
-    return next({ name: "home" });
+    return { name: "home" };
   }
 
   // 4. Libera a navegação
-  next();
+  return;
 });

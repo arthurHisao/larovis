@@ -10,7 +10,7 @@ const authStore = useAuthStore();
 <template>
   <Avatar class="h-10 w-10">
     <AvatarImage
-      :src="authStore.user?.avatar"
+      :src="authStore.user?.avatar ?? ''"
       :alt="authStore.user?.name"
     />
     <AvatarFallback class="bg-primary/10 text-primary font-bold">

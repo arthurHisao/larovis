@@ -63,7 +63,7 @@ class MessageController extends Controller
         $validated = $request->validate([
             'receiver_id'  => 'required|exists:users,id',
             'text'         => 'required|string',
-            // 'parent_id'    => 'required|exists:messages,id', 
+            'parent_id'    => 'nullable|exists:messages,id', 
         ]);
 
         // Cria a mensagem associando o remetente logado
@@ -74,20 +74,12 @@ class MessageController extends Controller
             'parent_id'    => $validated['parent_id'] ?? null,
         ]);
 
-        Log::info('Mensagem guardada no banco', $message->toArray());
-
         // Carrega os relacionamentos se necessário (ex: dados do remetente)
         $message->load('sender');
 
-        // 4. Log para confirmar que o broadcast foi acionado
-        Log::info('Evento de broadcast disparado para o Reverb!');
-
+        // Dispara o Emit
         broadcast(new MessageSent($message))->toOthers();
-        
-        // return response()->json([
-        //     'success' => true,
-        //     'message' => $message
-        // ], 201);
+
         return (new MessageResource($message))->response()->setStatusCode(201);
     }
 }

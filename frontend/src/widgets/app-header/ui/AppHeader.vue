@@ -89,7 +89,7 @@ const handleLogout = async () => {
               as-child
               class="text-muted-foreground hover:text-foreground"
             >
-              <RouterLink to="/departamentos">Departamentos</RouterLink>
+              <!-- <RouterLink to="/departamentos">Departamentos</RouterLink> -->
             </Button>
           </li>
           <li>
@@ -98,7 +98,7 @@ const handleLogout = async () => {
               as-child
               class="text-muted-foreground hover:text-foreground"
             >
-              <RouterLink to="/comunicados">Comunicados</RouterLink>
+              <!-- <RouterLink to="/comunicados">Comunicados</RouterLink> -->
             </Button>
           </li>
         </ul>
