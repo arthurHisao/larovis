@@ -92,7 +92,7 @@ const updateDraft = (userId: number, text: string) => {
       >
         <Button
           @click="isListOpen = !isListOpen"
-          class="w-full flex items-center justify-between p-3 bg-card hover:bg-muted/40 transition-colors cursor-pointer border-b border-border/60"
+          class="w-full flex items-center justify-between rounded-b-none p-3 bg-card hover:bg-muted/40 transition-colors cursor-pointer border-b border-border/60"
         >
           <div class="flex items-center gap-2">
             <div class="relative">

@@ -20,33 +20,24 @@ export const useMessageStore = defineStore("messages", () => {
    * Adiciona a propriedade `isOnline: true/false` a cada utilizador.
    */
   const unifiedContacts = computed(() => {
-    const contactsMap = new Map<number, ChatUser & { isOnline: boolean }>();
+    const onlineUserIds = new Set(onlineUsers.value.map((user) => user.id));
+    const conversationIds = new Set(
+      conversationsList.value.map((user) => user.id),
+    );
 
-    // Primeiro, adiciona todos os contactos do histórico do banco
-    conversationsList.value.forEach((user) => {
-      contactsMap.set(user.id, {
+    const conversationContacts = conversationsList.value.map((user) => ({
+      ...user,
+      isOnline: onlineUserIds.has(user.id),
+    }));
+
+    const onlineContacts = onlineUsers.value
+      .filter((user) => !conversationIds.has(user.id))
+      .map((user) => ({
         ...user,
-        isOnline: onlineUsers.value.some((o) => o.id === user.id),
-      });
-    });
+        isOnline: true,
+      }));
 
-    // Mantém disponíveis contatos descobertos pela presença mesmo após ficarem offline.
-    knownOnlineUsers.value.forEach((user) => {
-      if (!contactsMap.has(user.id)) {
-        contactsMap.set(user.id, {
-          ...user,
-          isOnline: onlineUsers.value.some(
-            (onlineUser) => onlineUser.id === user.id,
-          ),
-        });
-      }
-    });
-
-    // Opcional: Ordena para colocar utilizadores online no topo (ou mantém a ordem natural)
-    return Array.from(contactsMap.values()).sort((a, b) => {
-      if (a.isOnline === b.isOnline) return 0;
-      return a.isOnline ? -1 : 1; // Online primeiro
-    });
+    return [...conversationContacts, ...onlineContacts];
   });
 
   // Busca o histórico de conversas do utilizador
