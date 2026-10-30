@@ -33,38 +33,6 @@ class AuthController extends Controller
             'token'   => $token
         ], 201);
     }
-
-    // public function login(Request $request)
-    // {
-    //     $request->validate([
-    //         'email' => 'required|email',
-    //         'password' => 'required',
-    //     ]);
-
-    //     $user = User::where('email', $request->email)->first();
-
-    //     if (! $user || ! Hash::check($request->password, $user->password)) {
-    //         throw ValidationException::withMessages([
-    //             'email' => ['As credenciais fornecidas estão incorretas.'],
-    //         ]);
-    //     }
-
-    //     // Deleta tokens antigos do usuário para evitar múltiplos tokens ativos (opcional)
-    //     $user->tokens()->delete();
-
-    //     // Gera um novo Bearer Token
-    //     $token = $user->createToken('larovis_auth_token')->plainTextToken;
-
-    //     return response()->json([
-    //         'user' => [
-    //             'id' => $user->id,
-    //             'name' => $user->name,
-    //             'email' => $user->email,
-    //             'avatar' => $user->avatar_url,
-    //         ],
-    //         'token' => $token,
-    //     ]);
-    // }
     
     public function login(Request $request)
     {

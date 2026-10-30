@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { nextTick, watch, type ComponentPublicInstance } from "vue";
-import { Send, X } from "lucide-vue-next";
+import { Ellipsis, EllipsisVertical, Send, X } from "lucide-vue-next";
 
 import type { ChatMessage as ChatMessageType } from "@/entities/message/model/types";
 import { useAuthStore } from "@/entities/user/model/auth.store";
@@ -68,7 +68,7 @@ watch(
   <div
     v-for="userId in activeChatUserIds"
     :key="userId"
-    class="w-72 shadow-lg transition-all duration-300"
+    class="w-80 shadow-lg transition-all duration-300"
   >
     <Card
       v-if="getUser(userId)"
@@ -85,10 +85,12 @@ watch(
               {{ getUser(userId)?.name.substring(0, 2) }}
             </AvatarFallback>
           </Avatar>
-          <span
-            class="font-semibold text-xs text-foreground truncate max-w-[120px]"
-            >{{ getUser(userId)?.name }}</span
-          >
+          <span class="font-semibold text-xs text-foreground truncate max-w-30">
+            {{ getUser(userId)?.name }}
+          </span>
+          <small>
+            {{ getUser(userId)?.role }}
+          </small>
         </div>
 
         <div class="flex items-center gap-1">
@@ -108,7 +110,7 @@ watch(
         <!-- Mensagem  -->
         <div
           :ref="(el) => setChatContainer(userId, el)"
-          class="p-3 space-y-2 overflow-y-auto flex-1"
+          class="px-3 space-y-2 overflow-y-auto flex-1"
         >
           <p
             v-if="messageStore.loadingConversations[userId]"
@@ -122,17 +124,23 @@ watch(
           >
             {{ props.conversationErrors[userId] }}
           </p>
+
           <div
             v-for="msg in messageStore.conversations[userId] || []"
             :key="msg.id"
             :class="[
-              'flex items-baseline gap-1.5',
+              'flex items-baseline relative',
               isOwnMessage(msg)
                 ? 'flex-row-reverse text-primary-foreground'
                 : 'flex-row text-foreground',
             ]"
           >
-            <Avatar class="h-6 w-6 shrink-0">
+            <Avatar
+              :class="[
+                'h-6 w-6 shrink-0 absolute top-0 -translate-y-1',
+                isOwnMessage(msg) ? 'right-0' : 'left-0',
+              ]"
+            >
               <AvatarImage
                 :src="getMessageUser(msg)?.avatar ?? ''"
                 :alt="getMessageUser(msg)?.name"
@@ -147,7 +155,9 @@ watch(
 
             <div
               class="flex max-w-[85%] flex-col"
-              :class="isOwnMessage(msg) ? 'items-end' : 'items-start'"
+              :class="
+                isOwnMessage(msg) ? 'items-end mr-11' : 'items-start ml-11'
+              "
             >
               <!-- Resposta -->
               <div v-if="msg?.refer && msg?.refer.length > 0">
@@ -172,17 +182,29 @@ watch(
               <div
                 v-else
                 :class="[
-                  'p-2 text-xs',
+                  'px-2.5 py-2.5 text-xs relative min-w-16 max-w-40 text-left',
                   isOwnMessage(msg)
-                    ? 'bg-primary text-primary-foreground rounded-lg rounded-tr-none'
-                    : 'bg-muted text-foreground rounded-lg rounded-tl-none',
+                    ? 'bg-primary text-primary-foreground rounded-lg rounded-tr-none rounded-br-xl'
+                    : 'bg-muted text-foreground rounded-lg rounded-tl-none rounded-bl-xl',
                 ]"
               >
-                {{ msg.text }}
+                <p class="mb-1.5 wrap-break-word">{{ msg.text }}</p>
+
+                <div class="absolute bottom-0.5 right-3 text-[9px] text-muted">
+                  {{ msg.time }}
+                </div>
+
+                <Button
+                  :size="'10px'"
+                  variant="ghost"
+                  :class="[
+                    'absolute top-0 rounded-full ',
+                    isOwnMessage(msg) ? '-right-4.5 ' : '-left-4.5',
+                  ]"
+                >
+                  <EllipsisVertical class="size-4 text-primary" />
+                </Button>
               </div>
-              <span class="mt-0.5 text-[9px] text-muted-foreground">
-                {{ msg.time }}
-              </span>
             </div>
           </div>
         </div>
