@@ -62,8 +62,12 @@ export const useMessageStore = defineStore("messages", () => {
     }
   }
 
-  async function sendMessage(receiverId: number, text: string) {
-    const response = await messageApi.sendMessage(receiverId, text);
+  async function sendMessage(
+    receiverId: number,
+    text: string,
+    parentId?: number,
+  ) {
+    const response = await messageApi.sendMessage(receiverId, text, parentId);
 
     const newMessage = {
       refer: [],

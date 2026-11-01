@@ -5,7 +5,10 @@ import { MessageCircle, ChevronUp, ChevronDown } from "lucide-vue-next";
 import { Card } from "@/shared/ui/card";
 import { Button } from "@/shared/ui/button";
 import { useMessageStore } from "@/entities/message/model/message.store";
-import type { ChatUser } from "@/entities/message/model/types";
+import type {
+  ChatMessage as ChatMessageType,
+  ChatUser,
+} from "@/entities/message/model/types";
 import ChatOnlineUsers from "./ChatOnlineUsers.vue";
 import ChatMessage from "./ChatMessage.vue";
 
@@ -17,6 +20,7 @@ const activeChatUserIds = ref<number[]>([]);
 
 // Mensagens digitadas por utilizador { userId: "texto..." }
 const draftMessages = ref<Record<number, string>>({});
+const replyingToMessages = ref<Record<number, ChatMessageType | undefined>>({});
 
 const messageStore = useMessageStore();
 const onlineUsersError = ref("");
@@ -40,7 +44,10 @@ const openChatWith = async (user: ChatUser) => {
   if (!activeChatUserIds.value.includes(user.id)) {
     // Limite máximo de 3 chats abertos lado a lado para não quebrar a tela
     if (activeChatUserIds.value.length >= 3) {
-      activeChatUserIds.value.shift();
+      const closedUserId = activeChatUserIds.value.shift();
+      if (closedUserId !== undefined) {
+        delete replyingToMessages.value[closedUserId];
+      }
     }
     activeChatUserIds.value.push(user.id);
   }
@@ -60,19 +67,29 @@ const closeChat = (userId: number) => {
   activeChatUserIds.value = activeChatUserIds.value.filter(
     (id) => id !== userId,
   );
+  delete replyingToMessages.value[userId];
 };
 
-const sendMessage = async (userId: number) => {
+const sendMessage = async (userId: number, parentId?: number) => {
   const text = draftMessages.value[userId]?.trim();
   if (!text) return;
 
   try {
     // Envia via store (que chama a API POST /messages)
-    await messageStore.sendMessage(userId, text);
+    await messageStore.sendMessage(userId, text, parentId);
     draftMessages.value[userId] = "";
+    delete replyingToMessages.value[userId];
   } catch (error) {
     console.error("Erro ao enviar mensagem:", error);
   }
+};
+
+const startReply = (userId: number, message: ChatMessageType) => {
+  replyingToMessages.value[userId] = message;
+};
+
+const cancelReply = (userId: number) => {
+  delete replyingToMessages.value[userId];
 };
 
 const updateDraft = (userId: number, text: string) => {
@@ -130,8 +147,11 @@ const updateDraft = (userId: number, text: string) => {
       :active-chat-user-ids="activeChatUserIds"
       :conversation-errors="conversationErrors"
       :draft-messages="draftMessages"
+      :replying-to-messages="replyingToMessages"
       @close="closeChat"
       @send="sendMessage"
+      @reply="startReply"
+      @cancel-reply="cancelReply"
       @update-draft="updateDraft"
     />
   </div>

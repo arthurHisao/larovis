@@ -22,7 +22,8 @@ class MessageResource extends JsonResource
             'refer'     =>  $this->parentMessage ? [
                 [
                     'referId' => $this->parentMessage->id,
-                    'text'    => $this->parentMessage->text
+                    'text'    => $this->parentMessage->text,
+                    'senderId' => $this->parentMessage->sender_id,
                 ]
             ] : []
         ];

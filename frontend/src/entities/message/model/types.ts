@@ -9,6 +9,7 @@ export interface ChatUser {
 export interface ChatMessageReference {
   referId: number;
   text: string;
+  senderId?: number;
 }
 
 export interface ChatMessage {

@@ -15,7 +15,7 @@ use Illuminate\Notifications\Notifiable;
 
 
 #[Fillable(['name', 'email', 'password'])]
-#[Hidden(['password', 'remember_token'])]
+#[Hidden(['password', 'remember_token', 'department_id'])]
 class User extends Authenticatable
 {
     use SoftDeletes; 
@@ -47,11 +47,17 @@ class User extends Authenticatable
         return "https://ui-avatars.com/api/?name={$name}&background=e11d48&color=ffffff&bold=true";
     }
 
+    public function department()
+    {
+        return $this->belongsTo(Department::class);
+    }
+
 
     public function sentMessages()
     {
         return $this->hasMany(Message::class, 'sender_id');
     }
+
     public function receivedMessages ()
     {
         return $this->hasMany(Message::class, 'receiver_id');

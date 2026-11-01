@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Events\MessageSent;
 use App\Http\Controllers\Controller;
+use App\Http\Resources\ChatUserResource;
 use App\Http\Resources\MessageResource;
 use App\Models\Message;
 use App\Models\User;
@@ -19,18 +20,21 @@ class MessageController extends Controller
         $userId = $request->user()->id;
 
 
-        $chatUsers = User::where(function ($query) use ($userId) {
-            $query->whereHas('receivedMessages', function ($q) use ($userId) {
-                 $q->where('sender_id', $userId);
+        $chatUsers = User::query()
+            ->select('id','name','email','avatar','department_id')
+            ->with('department:id,slug')
+            ->where(function ($query) use ($userId) {
+                $query->whereHas('receivedMessages', function ($q) use ($userId) {
+                    $q->where('sender_id', $userId);
+                })
+                ->orWhereHas('sentMessages', function ($q) use ($userId) {
+                    $q->where('receiver_id', $userId);
+                });
             })
-            ->orWhereHas('sentMessages', function ($q) use ($userId) {
-                $q->where('receiver_id', $userId);
-            });
-        })
-        ->where('id', '!=', $userId)
-        ->get();
-
-        return response()->json($chatUsers);
+            ->where('id', '!=', $userId)
+            ->get();
+            
+        return ChatUserResource::collection($chatUsers);
     }
 
     public function show(Request $request, User $user) 
@@ -75,7 +79,7 @@ class MessageController extends Controller
         ]);
 
         // Carrega os relacionamentos se necessário (ex: dados do remetente)
-        $message->load('sender');
+        $message->load(['sender', 'parentMessage:id,text,sender_id']);
 
         // Dispara o Emit
         broadcast(new MessageSent($message))->toOthers();

@@ -12,10 +12,15 @@ export const messageApi = {
     return response.data;
   },
 
-  async sendMessage(receiverId: number, text: string): Promise<ChatMessage> {
+  async sendMessage(
+    receiverId: number,
+    text: string,
+    parentId?: number,
+  ): Promise<ChatMessage> {
     const response = await api.post<ChatMessage>("/messages", {
       receiver_id: receiverId,
       text,
+      parent_id: parentId,
     });
     return response.data;
   },
