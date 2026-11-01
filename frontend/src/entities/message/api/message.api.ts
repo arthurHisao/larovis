@@ -2,8 +2,10 @@ import { api } from "@/shared/api/axios";
 import type { ChatMessage, ChatUser } from "../model/types";
 
 export const messageApi = {
-  async getConversations(): Promise<ChatUser[]> {
-    const response = await api.get<ChatUser[]>("/messages");
+  async getConversations(search?: string): Promise<ChatUser[]> {
+    const response = await api.get<ChatUser[]>("/messages", {
+      params: search ? { search } : undefined,
+    });
     return response.data;
   },
 

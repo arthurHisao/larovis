@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { computed, onBeforeUnmount, ref, watch } from "vue";
 import { useMessageStore } from "@/entities/message/model/message.store";
 import type { ChatUser } from "@/entities/message/model/types";
 import { Avatar, AvatarFallback, AvatarImage } from "@/shared/ui/avatar";
@@ -11,9 +12,30 @@ defineProps<{
 
 const emit = defineEmits<{
   openChat: [user: ChatUser];
+  search: [query: string];
 }>();
 
 const messageStore = useMessageStore();
+const search = ref("");
+const filteredContacts = computed(() => {
+  const query = search.value.trim().toLocaleLowerCase();
+  if (!query) return messageStore.unifiedContacts;
+
+  return messageStore.unifiedContacts.filter((user) =>
+    user.name.toLocaleLowerCase().includes(query),
+  );
+});
+
+let searchTimeout: ReturnType<typeof setTimeout> | undefined;
+
+watch(search, (query) => {
+  if (searchTimeout) clearTimeout(searchTimeout);
+  searchTimeout = setTimeout(() => emit("search", query), 300);
+});
+
+onBeforeUnmount(() => {
+  if (searchTimeout) clearTimeout(searchTimeout);
+});
 </script>
 
 <template>
@@ -25,6 +47,7 @@ const messageStore = useMessageStore();
     <Input
       type="search"
       placeholder="Buscar conversa..."
+      v-model="search"
       class="h-8 text-xs bg-muted/40"
     />
 
@@ -41,7 +64,7 @@ const messageStore = useMessageStore();
       {{ error }}
     </p>
     <p
-      v-else-if="messageStore.unifiedContacts.length === 0"
+      v-else-if="filteredContacts.length === 0"
       class="py-3 text-center text-xs text-muted-foreground"
     >
       Nenhuma conversa encontrada.
@@ -52,7 +75,7 @@ const messageStore = useMessageStore();
       class="space-y-1"
     >
       <div
-        v-for="user in messageStore.unifiedContacts"
+        v-for="user in filteredContacts"
         :key="user.id"
         @click="emit('openChat', user)"
         class="flex items-center justify-between p-2 rounded-lg hover:bg-muted/50 cursor-pointer transition-colors"

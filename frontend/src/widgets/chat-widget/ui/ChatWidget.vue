@@ -25,15 +25,19 @@ const replyingToMessages = ref<Record<number, ChatMessageType | undefined>>({});
 const messageStore = useMessageStore();
 const onlineUsersError = ref("");
 const conversationErrors = ref<Record<number, string>>({});
+let conversationListRequestId = 0;
 
-const loadConversations = async () => {
+const loadConversations = async (search = "") => {
+  const requestId = ++conversationListRequestId;
   onlineUsersError.value = "";
 
   try {
-    await messageStore.fetchConversationsList();
+    await messageStore.fetchConversationsList(search);
   } catch (error) {
     console.error("Erro ao carregar conversas:", error);
-    onlineUsersError.value = "Não foi possível carregar as conversas.";
+    if (requestId === conversationListRequestId) {
+      onlineUsersError.value = "Não foi possível carregar as conversas.";
+    }
   }
 };
 
@@ -138,6 +142,7 @@ const updateDraft = (userId: number, text: string) => {
           :is-open="isListOpen"
           :error="onlineUsersError"
           @open-chat="openChatWith"
+          @search="loadConversations"
         />
       </Card>
     </div>

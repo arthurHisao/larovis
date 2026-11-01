@@ -18,20 +18,40 @@ class MessageController extends Controller
     public function index(Request $request) 
     {
         $userId = $request->user()->id;
+        $search = $request->input('search');
 
 
         $chatUsers = User::query()
             ->select('id','name','email','avatar','department_id')
             ->with('department:id,slug')
-            ->where(function ($query) use ($userId) {
-                $query->whereHas('receivedMessages', function ($q) use ($userId) {
-                    $q->where('sender_id', $userId);
-                })
-                ->orWhereHas('sentMessages', function ($q) use ($userId) {
-                    $q->where('receiver_id', $userId);
-                });
-            })
             ->where('id', '!=', $userId)
+
+            ->when($search, function ($query, $search) {
+                $query->where('users.name', 'like', '%{$search}%');
+            })
+
+            // 1. Busca a data da última mensagem trocada com este utilizador (se existir)
+            ->selectSub(function ($query) use ($userId) {
+                $query->from('messages')
+                    ->selectRaw('MAX(messages.created_at)')
+                    ->where(function ($q) use ($userId) {
+                        $q->whereColumn('messages.receiver_id', 'users.id')
+                            ->where('messages.sender_id', $userId)
+
+                        ->orWhere(function ($sub) use ($userId) {
+                            $sub->whereColumn('messages.sender_id', 'users.id')
+                                ->where('messages.receiver_id', $userId);
+                        });
+                    });
+            }, 'last_message_at')
+
+            // 2. Ordena primeiro por quem tem mensagens, com base na data (mais recentes no topo)
+            // O PostgreSQL coloca valores NULL no fim quando usamos DESC, o que é perfeito aqui!
+            ->orderBy('last_message_at', 'asc')
+
+            // 3. Critério de desempate e para quem não tem conversas: ordem alfabética de A a Z
+            ->orderBy('users.name', 'asc')
+
             ->get();
             
         return ChatUserResource::collection($chatUsers);

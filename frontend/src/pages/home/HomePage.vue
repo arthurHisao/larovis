@@ -51,28 +51,39 @@ onMounted(() => {
       <div
         class="flex items-center justify-between border-b border-border pb-2"
       >
-        <h2 class="font-semibold text-lg text-foreground">
-          Publicações Recentes
-        </h2>
+        <h2 class="font-semibold text-lg text-foreground">Publicações</h2>
         <div class="flex gap-2">
           <Button
             variant="secondary"
             size="sm"
             class="text-xs"
-            >Todos</Button
           >
+            Todos
+          </Button>
+
           <Button
             variant="ghost"
             size="sm"
             class="text-xs text-muted-foreground"
-            >Comunicados</Button
           >
+            Comunicados
+          </Button>
+
           <Button
             variant="ghost"
             size="sm"
             class="text-xs text-muted-foreground"
-            >Departamentos</Button
           >
+            Departamentos
+          </Button>
+
+          <Button
+            variant="ghost"
+            size="sm"
+            class="text-xs text-muted-foreground"
+          >
+            Nova publicação
+          </Button>
         </div>
       </div>
 

@@ -14,6 +14,7 @@ export const useMessageStore = defineStore("messages", () => {
   const conversations = ref<Record<number, ChatMessage[]>>({});
   const isLoadingConversations = ref(false);
   const loadingConversations = ref<Record<number, boolean>>({});
+  let conversationListRequestId = 0;
 
   /**
    * Getter unificado: Faz o merge do histórico com o status online em tempo real.
@@ -41,12 +42,20 @@ export const useMessageStore = defineStore("messages", () => {
   });
 
   // Busca o histórico de conversas do utilizador
-  async function fetchConversationsList() {
+  async function fetchConversationsList(search = "") {
+    const requestId = ++conversationListRequestId;
     isLoadingConversations.value = true;
     try {
-      conversationsList.value = await messageApi.getConversations();
+      const contacts = await messageApi.getConversations(
+        search.trim() || undefined,
+      );
+      if (requestId === conversationListRequestId) {
+        conversationsList.value = contacts;
+      }
     } finally {
-      isLoadingConversations.value = false;
+      if (requestId === conversationListRequestId) {
+        isLoadingConversations.value = false;
+      }
     }
   }
 

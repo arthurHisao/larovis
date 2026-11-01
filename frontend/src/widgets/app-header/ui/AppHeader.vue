@@ -72,7 +72,7 @@ const handleLogout = async () => {
       </div>
 
       <!-- Navegação Principal -->
-      <nav class="flex items-center gap-6 text-sm font-medium">
+      <!-- <nav class="flex items-center gap-6 text-sm font-medium">
         <ul class="flex items-center gap-1 sm:gap-2">
           <li>
             <Button
@@ -89,7 +89,7 @@ const handleLogout = async () => {
               as-child
               class="text-muted-foreground hover:text-foreground"
             >
-              <!-- <RouterLink to="/departamentos">Departamentos</RouterLink> -->
+              <RouterLink to="/departamentos">Departamentos</RouterLink>
             </Button>
           </li>
           <li>
@@ -98,11 +98,11 @@ const handleLogout = async () => {
               as-child
               class="text-muted-foreground hover:text-foreground"
             >
-              <!-- <RouterLink to="/comunicados">Comunicados</RouterLink> -->
+              <RouterLink to="/comunicados">Comunicados</RouterLink>
             </Button>
           </li>
         </ul>
-      </nav>
+      </nav> -->
 
       <!-- Ações do Usuário e Perfil -->
       <div class="flex items-center gap-3">
