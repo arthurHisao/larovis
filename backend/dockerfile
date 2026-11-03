@@ -1,17 +1,22 @@
-FROM php:8.3-fpm-alpine
+# ------------------------------------
+# Stage 1: Build & Dependencies
+# ------------------------------------
+FROM php:8.3-fpm-alpine AS builder
 
-# Install essential system packages and dependencies for Laravel & PostgreSQL
+# Install build dependencies
 RUN apk add --no-cache \
-    nginx \
     postgresql-dev \
     libxml2-dev \
     curl-dev \
     libpng-dev \
     libzip-dev \
+    zip \
     unzip \
-    && docker-php-ext-install pdo_pgsql bcmath xml curl gd zip
+    git \
+    oniguruma-dev \
+    && docker-php-ext-install pdo_pgsql bcmath xml curl gd zip mbstring
 
-# Copy Composer binary
+# Copy Composer from official image
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
 WORKDIR /var/www
@@ -19,16 +24,40 @@ WORKDIR /var/www
 # Copy application files
 COPY . .
 
-# Set appropriate ownership for storage and cache
+# Run Composer with strict memory optimization flags
+ENV COMPOSER_MEMORY_LIMIT=512M
+RUN composer install \
+    --no-dev \
+    --no-scripts \
+    --prefer-dist \
+    --optimize-autoloader \
+    --no-interaction
+
+# ------------------------------------
+# Stage 2: Final Lightweight Image
+# ------------------------------------
+FROM php:8.3-fpm-alpine
+
+# Install only essential runtime packages
+RUN apk add --no-cache \
+    nginx \
+    postgresql-libs \
+    libpng \
+    libzip \
+    && docker-php-ext-install pdo_pgsql bcmath xml curl gd zip mbstring
+
+WORKDIR /var/www
+
+# Copy files and compiled vendor directory from the builder stage
+COPY --from=builder /var/www /var/www
+
+# Set correct permissions for Laravel storage and cache
 RUN chown -R www-data:www-data /var/www/storage /var/www/bootstrap/cache
 
-# Install PHP dependencies for production
-RUN composer install --no-dev --optimize-autoloader
-
-# Simple Nginx configuration to serve Laravel
+# Simple Nginx configuration
 RUN echo 'server { listen 80; root /var/www/public; index index.php; location / { try_files $uri $uri/ /index.php?$query_string; } location ~ \.php$ { fastcgi_pass 127.0.0.1:9000; fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name; include fastcgi_params; } }' > /etc/nginx/http.d/default.conf
 
 EXPOSE 80
 
-# Start PHP-FPM in background and run Nginx in foreground
+# Start PHP-FPM and Nginx
 CMD php-fpm -D && nginx -g "daemon off;"
