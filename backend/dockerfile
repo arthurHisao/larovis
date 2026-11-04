@@ -1,5 +1,5 @@
 # ------------------------------------
-# Stage 1: Build & Dependencies
+# Stage 1: Build & Compile Extensions
 # ------------------------------------
 FROM php:8.3-fpm-alpine AS builder
 
@@ -21,10 +21,10 @@ COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
 WORKDIR /var/www
 
-# Copy application files
+# Copy application code
 COPY . .
 
-# Run Composer with strict memory optimization flags
+# Run Composer with strict memory flags suitable for free tier limits
 ENV COMPOSER_MEMORY_LIMIT=512M
 RUN composer install \
     --no-dev \
@@ -38,23 +38,27 @@ RUN composer install \
 # ------------------------------------
 FROM php:8.3-fpm-alpine
 
-# Install only essential runtime packages
+# Install runtime libraries only (no build tools needed!)
 RUN apk add --no-cache \
     nginx \
     postgresql-libs \
     libpng \
     libzip \
-    && docker-php-ext-install pdo_pgsql bcmath xml curl gd zip mbstring
+    oniguruma
+
+# Copy pre-compiled PHP extension binaries and configuration from Stage 1
+COPY --from=builder /usr/local/lib/php/extensions/ /usr/local/lib/php/extensions/
+COPY --from=builder /usr/local/etc/php/conf.d/ /usr/local/etc/php/conf.d/
 
 WORKDIR /var/www
 
-# Copy files and compiled vendor directory from the builder stage
+# Copy vendor dependencies and application code from Stage 1
 COPY --from=builder /var/www /var/www
 
-# Set correct permissions for Laravel storage and cache
+# Set appropriate permissions for Laravel storage and cache
 RUN chown -R www-data:www-data /var/www/storage /var/www/bootstrap/cache
 
-# Simple Nginx configuration
+# Configure Nginx
 RUN echo 'server { listen 80; root /var/www/public; index index.php; location / { try_files $uri $uri/ /index.php?$query_string; } location ~ \.php$ { fastcgi_pass 127.0.0.1:9000; fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name; include fastcgi_params; } }' > /etc/nginx/http.d/default.conf
 
 EXPOSE 80
