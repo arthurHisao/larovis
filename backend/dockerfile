@@ -1,7 +1,7 @@
 # ------------------------------------
 # Stage 1: Build & Compile Extensions
 # ------------------------------------
-FROM php:8.3-fpm-alpine AS builder
+FROM php:8.4-fpm-alpine AS builder
 
 # Install build dependencies
 RUN apk add --no-cache \
@@ -24,7 +24,7 @@ WORKDIR /var/www
 # Copy application code
 COPY . .
 
-# Run Composer with strict memory flags suitable for free tier limits
+# Run Composer with strict memory flags suitable for Render free tier limits
 ENV COMPOSER_MEMORY_LIMIT=512M
 RUN composer install \
     --no-dev \
@@ -36,9 +36,9 @@ RUN composer install \
 # ------------------------------------
 # Stage 2: Final Lightweight Image
 # ------------------------------------
-FROM php:8.3-fpm-alpine
+FROM php:8.4-fpm-alpine
 
-# Install runtime libraries only (no build tools needed!)
+# Install runtime libraries only
 RUN apk add --no-cache \
     nginx \
     postgresql-libs \
