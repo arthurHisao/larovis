@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { onMounted, ref } from "vue";
+import { useRouter } from "vue-router";
 
 import PostCard from "@/entities/post/ui/PostCard.vue";
 // import { mockPosts } from '@/entities/post/model/mock-posts'
@@ -12,6 +13,12 @@ import { Calendar, Megaphone } from "@lucide/vue";
 import ChatWidget from "@/widgets/chat-widget/ui/ChatWidget.vue";
 
 import { postService } from "@/entities/post/api/post-service";
+
+const router = useRouter();
+
+const handleCreatePost = () => {
+  router.push({ name: "create-post" });
+};
 
 const posts = ref<Post[]>();
 const isLoading = ref(true);
@@ -81,6 +88,7 @@ onMounted(() => {
             variant="ghost"
             size="sm"
             class="text-xs text-muted-foreground"
+            @click="handleCreatePost"
           >
             Nova publicação
           </Button>

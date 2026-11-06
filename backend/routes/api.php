@@ -7,12 +7,6 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
 
-// Rota com autenticação
-// Route::get('/user', function (Request $request) {
-//     return $request->user();
-// })->middleware('auth:sanctum');
-
-
 Route::post('/register', [AuthController::class, 'register']);
 
 

@@ -25,6 +25,11 @@ const routes: Array<RouteRecordRaw> = [
         name: "home",
         component: () => import("@/pages/home/HomePage.vue"),
       },
+      {
+        path: "posts/create",
+        name: "create-post",
+        component: () => import("@/pages/create-post"),
+      },
       // {
       //     path: "departamento/:slug",
       //     name: "department",
