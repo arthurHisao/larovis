@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\DepartmentController;
 use App\Http\Controllers\Api\MessageController;
 use App\Http\Controllers\Api\PostController;
 use Illuminate\Http\Request;
@@ -25,6 +26,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/user', function (Request $request) {
         return $request->user();
     });
+
+    // Departamentos
+    Route::get('/departments', [DepartmentController::class, 'index']);
 
     // Posts & Interações
     Route::get('/posts', [PostController::class, 'index']);

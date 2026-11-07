@@ -22,22 +22,28 @@ const handleCreatePost = () => {
 
 const posts = ref<Post[]>();
 const isLoading = ref(true);
+const activeFilter = ref<"all" | "official" | "department">("all");
 
 // Ação de simulação para o Like
 const handleToggleLike = async (postId: number) => {
   const like = await postService.toggleLike(postId);
-  const post = posts?.value.find((p) => p.id === postId);
+  const post = posts?.value?.find((p) => p.id === postId);
   if (post) {
     post.isLiked = !post.isLiked;
     post.likesCount += post.isLiked ? 1 : -1;
   }
 };
 
+const handleFilterChange = (filter: "all" | "official" | "department") => {
+  activeFilter.value = filter;
+  fetchPosts(filter);
+};
+
 // Buscar posts do banco do Laravel ao carregar a página
-const fetchPosts = async () => {
+const fetchPosts = async (filter?: string) => {
   try {
     isLoading.value = true;
-    posts.value = await postService.getAll();
+    posts.value = await postService.getAll(filter ?? activeFilter.value);
   } catch (error) {
     console.error("Erro ao carregar publicações:", error);
   } finally {
@@ -61,25 +67,37 @@ onMounted(() => {
         <h2 class="font-semibold text-lg text-foreground">Publicações</h2>
         <div class="flex gap-2">
           <Button
-            variant="secondary"
+            :variant="activeFilter === 'all' ? 'secondary' : 'ghost'"
             size="sm"
-            class="text-xs"
+            :class="[
+              'text-xs cursor-pointer',
+              activeFilter !== 'all' && 'text-muted-foreground',
+            ]"
+            @click="handleFilterChange('all')"
           >
             Todos
           </Button>
 
           <Button
-            variant="ghost"
+            :variant="activeFilter === 'official' ? 'secondary' : 'ghost'"
             size="sm"
-            class="text-xs text-muted-foreground"
+            :class="[
+              'text-xs cursor-pointer',
+              activeFilter !== 'official' && 'text-muted-foreground',
+            ]"
+            @click="handleFilterChange('official')"
           >
             Comunicados
           </Button>
 
           <Button
-            variant="ghost"
+            :variant="activeFilter === 'department' ? 'secondary' : 'ghost'"
             size="sm"
-            class="text-xs text-muted-foreground"
+            :class="[
+              'text-xs cursor-pointer',
+              activeFilter !== 'department' && 'text-muted-foreground',
+            ]"
+            @click="handleFilterChange('department')"
           >
             Departamentos
           </Button>

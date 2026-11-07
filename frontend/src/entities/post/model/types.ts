@@ -5,11 +5,20 @@ export interface Author {
   department: string;
 }
 
+export interface PostImage {
+  id: number;
+  url: string;
+}
+
 export interface Post {
   id: number;
   author: Author;
   content: string;
   createdAt: string;
+  department?: string;
+  department_id?: number | null;
+  type?: string;
+  images?: PostImage[];
   likesCount: number;
   commentsCount: number;
   isLiked?: boolean;

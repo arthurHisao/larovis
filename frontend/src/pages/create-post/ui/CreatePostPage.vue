@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onUnmounted } from "vue";
+import { ref, computed, onMounted, onUnmounted } from "vue";
 import { useRouter } from "vue-router";
 import {
   ArrowLeft,
@@ -23,6 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/shared/ui/select";
+import { useCreatePostStore } from "../model/create-post.store";
 
 interface UploadedMedia {
   id: string;
@@ -33,18 +34,22 @@ interface UploadedMedia {
 }
 
 const router = useRouter();
+const createPostStore = useCreatePostStore();
+
+onMounted(() => {
+  createPostStore.fetchDepartments();
+});
 
 // Modelos do formulário
 const content = ref("");
-const postType = ref("");
-const departmentVisibility = ref("");
+const postType = ref("geral");
+const departmentVisibility = ref("todos");
 
 // Estados do Upload / Drag and Drop
 const isDragging = ref(false);
 const errorMessage = ref<string | null>(null);
 const selectedImages = ref<UploadedMedia[]>([]);
 const fileInputRef = ref<HTMLInputElement | null>(null);
-const isSubmitting = ref(false);
 
 // Controle de Expansão e Limite de Exibição
 const VISIBLE_THRESHOLD = 14;
@@ -167,28 +172,26 @@ const handleBack = () => {
 };
 
 const handlePublish = async () => {
-  isSubmitting.value = true;
+  errorMessage.value = null;
+
+  if (!content.value.trim()) {
+    errorMessage.value = "Por favor, escreva o conteúdo da publicação.";
+    return;
+  }
+
   try {
-    // Preparação do payload FormData pronto para o envio real via API
-    const formData = new FormData();
-    formData.append("content", content.value);
-    formData.append("postType", postType.value);
-    formData.append("departmentVisibility", departmentVisibility.value);
-
-    selectedImages.value.forEach((img) => {
-      formData.append("images[]", img.file);
-    });
-
-    console.log("Dados prontos para publicação:", {
+    await createPostStore.publishPost({
       content: content.value,
-      postType: postType.value,
-      departmentVisibility: departmentVisibility.value,
+      postType: postType.value || "geral",
+      departmentVisibility: departmentVisibility.value || "todos",
       images: selectedImages.value.map((i) => i.file),
     });
 
-    // TODO: Chamar o serviço de API aqui
-  } finally {
-    isSubmitting.value = false;
+    clearAllImages();
+    router.push({ name: "home" });
+  } catch {
+    errorMessage.value =
+      createPostStore.error || "Ocorreu um erro ao publicar. Tente novamente.";
   }
 };
 </script>
@@ -258,8 +261,13 @@ const handlePublish = async () => {
                 <SelectGroup>
                   <SelectLabel>Departamentos</SelectLabel>
                   <SelectItem value="todos">Todos os departamentos</SelectItem>
-                  <SelectItem value="ti">Tecnologia da Informação</SelectItem>
-                  <SelectItem value="rh">Recursos Humanos</SelectItem>
+                  <SelectItem
+                    v-for="dept in createPostStore.departments"
+                    :key="dept.id"
+                    :value="String(dept.id)"
+                  >
+                    {{ dept.name }}
+                  </SelectItem>
                 </SelectGroup>
               </SelectContent>
             </Select>
@@ -425,11 +433,11 @@ const handlePublish = async () => {
         <Button
           size="sm"
           class="gap-2"
-          :disabled="isSubmitting"
+          :disabled="createPostStore.isSubmitting"
           @click="handlePublish"
         >
           <Send class="h-4 w-4" />
-          {{ isSubmitting ? "Publicando..." : "Publicar" }}
+          {{ createPostStore.isSubmitting ? "Publicando..." : "Publicar" }}
         </Button>
       </div>
     </Card>

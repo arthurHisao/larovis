@@ -1,10 +1,13 @@
 <script setup lang="ts">
-import { ref } from "vue";
+import { ref, onMounted, onUnmounted } from "vue";
 import {
   MoreHorizontal,
   Heart,
   MessageSquare,
   Bookmark,
+  X,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-vue-next";
 import type { Post } from "../model/types";
 
@@ -15,7 +18,7 @@ import CreateCommentForm from "@/features/create-comment/ui/CreateCommentForm.vu
 import Skeleton from "@/shared/ui/skeleton/Skeleton.vue";
 import { ArrowUp } from "@lucide/vue";
 
-defineProps<{
+const props = defineProps<{
   post?: Post;
   loading?: boolean;
 }>();
@@ -30,6 +33,45 @@ const isCommentBoxExpanded = ref(false);
 const toggleCommentBox = () => {
   isCommentBoxExpanded.value = !isCommentBoxExpanded.value;
 };
+
+// Estados e métodos do visualizador de imagem ampliada (Lightbox)
+const activeImageIndex = ref<number | null>(null);
+
+const openViewer = (index: number) => {
+  activeImageIndex.value = index;
+};
+
+const closeViewer = () => {
+  activeImageIndex.value = null;
+};
+
+const nextImage = () => {
+  if (!props.post?.images?.length || activeImageIndex.value === null) return;
+  activeImageIndex.value =
+    (activeImageIndex.value + 1) % props.post.images.length;
+};
+
+const prevImage = () => {
+  if (!props.post?.images?.length || activeImageIndex.value === null) return;
+  activeImageIndex.value =
+    (activeImageIndex.value - 1 + props.post.images.length) %
+    props.post.images.length;
+};
+
+const handleKeyDown = (e: KeyboardEvent) => {
+  if (activeImageIndex.value === null) return;
+  if (e.key === "Escape") closeViewer();
+  if (e.key === "ArrowRight") nextImage();
+  if (e.key === "ArrowLeft") prevImage();
+};
+
+onMounted(() => {
+  window.addEventListener("keydown", handleKeyDown);
+});
+
+onUnmounted(() => {
+  window.removeEventListener("keydown", handleKeyDown);
+});
 </script>
 
 <template>
@@ -120,19 +162,21 @@ const toggleCommentBox = () => {
       <div
         v-for="(image, index) in post.images.slice(0, 2)"
         :key="image.id"
-        class="relative h-48 w-full overflow-hidden rounded-lg"
+        class="group relative h-48 w-full overflow-hidden rounded-lg cursor-pointer bg-muted/40"
+        @click="openViewer(index)"
       >
         <!-- Imagem principal -->
         <img
           :src="image.url"
           alt="Imagem do post"
-          class="h-full w-full object-cover"
+          class="h-full w-full object-cover transition-transform duration-200 group-hover:scale-105"
         />
 
         <!-- Overlay do "+X" caso existam mais de 2 imagens -->
         <div
           v-if="index === 1 && post.images.length > 2"
-          class="absolute inset-0 flex items-center justify-center bg-black/60 font-semibold text-white text-lg backdrop-blur-[1px] cursor-pointer hover:bg-black/70 transition-colors"
+          class="absolute inset-0 flex items-center justify-center bg-black/60 font-semibold text-white text-lg backdrop-blur-[1px] hover:bg-black/70 transition-colors"
+          @click.stop="openViewer(1)"
         >
           +{{ post.images.length - 2 }}
         </div>
@@ -201,4 +245,80 @@ const toggleCommentBox = () => {
       Recolher comentários
     </Button>
   </Card>
+
+  <!-- Modal / Lightbox em Tela Cheia -->
+  <Teleport to="body">
+    <Transition
+      enter-active-class="transition duration-200 ease-out"
+      enter-from-class="opacity-0"
+      enter-to-class="opacity-100"
+      leave-active-class="transition duration-150 ease-in"
+      leave-from-class="opacity-100"
+      leave-to-class="opacity-0"
+    >
+      <div
+        v-if="activeImageIndex !== null && post?.images?.[activeImageIndex]"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md p-4 select-none"
+        @click.self="closeViewer"
+      >
+        <!-- Barra Superior: Contador e Botão Fechar -->
+        <div
+          class="absolute top-4 inset-x-4 flex items-center justify-between text-white pointer-events-none"
+        >
+          <!-- Contador de fotos -->
+          <div
+            v-if="post.images.length > 1"
+            class="px-3 py-1 rounded-full bg-white/10 backdrop-blur-xs text-xs font-medium text-white/90 border border-white/10 pointer-events-auto"
+          >
+            {{ activeImageIndex + 1 }} de {{ post.images.length }}
+          </div>
+          <div v-else />
+
+          <!-- Botão Fechar (X) -->
+          <button
+            type="button"
+            aria-label="Fechar visualizador"
+            class="pointer-events-auto p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors cursor-pointer"
+            @click="closeViewer"
+          >
+            <X class="h-5 w-5" />
+          </button>
+        </div>
+
+        <!-- Seta Anterior -->
+        <button
+          v-if="post.images.length > 1"
+          type="button"
+          aria-label="Imagem anterior"
+          class="absolute left-4 p-2.5 rounded-full bg-black/40 hover:bg-white/20 text-white border border-white/10 backdrop-blur-xs transition-colors cursor-pointer"
+          @click.stop="prevImage"
+        >
+          <ChevronLeft class="h-6 w-6" />
+        </button>
+
+        <!-- Imagem Ampliada -->
+        <div
+          class="max-w-5xl max-h-[85vh] flex items-center justify-center overflow-hidden"
+          @click.stop
+        >
+          <img
+            :src="post.images[activeImageIndex].url"
+            :alt="'Imagem ' + (activeImageIndex + 1)"
+            class="max-h-[85vh] max-w-[90vw] object-contain rounded-lg shadow-2xl transition-all"
+          />
+        </div>
+
+        <!-- Seta Próxima -->
+        <button
+          v-if="post.images.length > 1"
+          type="button"
+          aria-label="Próxima imagem"
+          class="absolute right-4 p-2.5 rounded-full bg-black/40 hover:bg-white/20 text-white border border-white/10 backdrop-blur-xs transition-colors cursor-pointer"
+          @click.stop="nextImage"
+        >
+          <ChevronRight class="h-6 w-6" />
+        </button>
+      </div>
+    </Transition>
+  </Teleport>
 </template>

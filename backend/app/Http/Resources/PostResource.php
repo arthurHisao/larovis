@@ -17,6 +17,8 @@ class PostResource extends JsonResource
             'title' => $this->title,
             'content' => $this->content,
             'type' => $this->type,
+            'department_id' => $this->department_id,
+            'department' => $this->department?->name ?? 'Geral',
             'isPinned' => (bool) $this->is_pinned,
             'createdAt' => $this->created_at->diffForHumans(), // Ex: "Há 2 horas"
             'author' => [

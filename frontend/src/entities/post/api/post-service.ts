@@ -3,9 +3,11 @@ import type { Post, Like } from "../model/types";
 
 export const postService = {
   // GET /api/posts
-  async getAll(): Promise<Post[]> {
-    const response = await api.get("/posts");
-    return response.data;
+  async getAll(filter?: string): Promise<Post[]> {
+    const response = await api.get("/posts", {
+      params: filter && filter !== "all" ? { filter } : {},
+    });
+    return (response.data as any)?.data ?? response.data ?? [];
   },
 
   // POST /api/posts

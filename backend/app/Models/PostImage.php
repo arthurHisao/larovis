@@ -7,7 +7,8 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 
-#[Fillable(['user_id', 'department_id', 'title', 'content', 'type', 'is_pinned'])]
+// #[Fillable(['user_id', 'department_id', 'title', 'content', 'type', 'is_pinned'])]
+#[Fillable(['post_id', 'path', 'order'])]
 class PostImage extends Model
 {
     public function post(): BelongsTo
