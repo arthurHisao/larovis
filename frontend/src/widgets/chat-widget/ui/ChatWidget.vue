@@ -41,6 +41,14 @@ const loadConversations = async (search = "") => {
   }
 };
 
+const loadMoreConversations = async () => {
+  try {
+    await messageStore.loadMoreConversations();
+  } catch (error) {
+    console.error("Erro ao carregar mais conversas:", error);
+  }
+};
+
 onMounted(loadConversations);
 
 // Abre a aba do chat se ainda não estiver aberta
@@ -143,6 +151,7 @@ const updateDraft = (userId: number, text: string) => {
           :error="onlineUsersError"
           @open-chat="openChatWith"
           @search="loadConversations"
+          @load-more="loadMoreConversations"
         />
       </Card>
     </div>

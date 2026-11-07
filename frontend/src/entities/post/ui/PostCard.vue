@@ -272,21 +272,20 @@ onUnmounted(() => {
           >
             {{ activeImageIndex + 1 }} de {{ post.images.length }}
           </div>
-          <div v-else />
 
           <!-- Botão Fechar (X) -->
-          <button
+          <Button
             type="button"
             aria-label="Fechar visualizador"
             class="pointer-events-auto p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors cursor-pointer"
             @click="closeViewer"
           >
             <X class="h-5 w-5" />
-          </button>
+          </Button>
         </div>
 
         <!-- Seta Anterior -->
-        <button
+        <Button
           v-if="post.images.length > 1"
           type="button"
           aria-label="Imagem anterior"
@@ -294,7 +293,7 @@ onUnmounted(() => {
           @click.stop="prevImage"
         >
           <ChevronLeft class="h-6 w-6" />
-        </button>
+        </Button>
 
         <!-- Imagem Ampliada -->
         <div
@@ -309,7 +308,7 @@ onUnmounted(() => {
         </div>
 
         <!-- Seta Próxima -->
-        <button
+        <Button
           v-if="post.images.length > 1"
           type="button"
           aria-label="Próxima imagem"
@@ -317,7 +316,7 @@ onUnmounted(() => {
           @click.stop="nextImage"
         >
           <ChevronRight class="h-6 w-6" />
-        </button>
+        </Button>
       </div>
     </Transition>
   </Teleport>

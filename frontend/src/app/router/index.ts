@@ -17,7 +17,7 @@ const routes: Array<RouteRecordRaw> = [
   },
   {
     path: "/",
-    component: () => import("@/widgets/base-layout/ui/BaseLayout.vue"), // Layout como wrapper
+    component: () => import("@/app/layouts/BaseLayout.vue"), // Layout como wrapper
     meta: { requiresAuth: true },
     children: [
       {

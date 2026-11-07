@@ -11,6 +11,13 @@ export const useMessageStore = defineStore("messages", () => {
   const onlineUsers = ref<ChatUser[]>([]);
   const knownOnlineUsers = ref<ChatUser[]>([]);
 
+  // 3. Paginação por cursor e busca
+  const nextCursor = ref<string | null>(null);
+  const isLoadingMoreConversations = ref(false);
+  const currentSearch = ref("");
+
+  const hasMoreConversations = computed(() => !!nextCursor.value);
+
   const conversations = ref<Record<number, ChatMessage[]>>({});
   const isLoadingConversations = ref(false);
   const loadingConversations = ref<Record<number, boolean>>({});
@@ -31,7 +38,14 @@ export const useMessageStore = defineStore("messages", () => {
       isOnline: onlineUserIds.has(user.id),
     }));
 
-    const onlineContacts = onlineUsers.value
+    // Se houver busca ativa, filtra também os usuários online não presentes no histórico
+    const onlineCandidates = currentSearch.value
+      ? onlineUsers.value.filter((user) =>
+          user.name.toLowerCase().includes(currentSearch.value.toLowerCase()),
+        )
+      : onlineUsers.value;
+
+    const onlineContacts = onlineCandidates
       .filter((user) => !conversationIds.has(user.id))
       .map((user) => ({
         ...user,
@@ -41,20 +55,59 @@ export const useMessageStore = defineStore("messages", () => {
     return [...conversationContacts, ...onlineContacts];
   });
 
-  // Busca o histórico de conversas do utilizador
+  // Busca a primeira página de conversas ou reseta após termo de busca
   async function fetchConversationsList(search = "") {
     const requestId = ++conversationListRequestId;
+    const cleanSearch = search.trim();
+    currentSearch.value = cleanSearch;
     isLoadingConversations.value = true;
+    nextCursor.value = null;
+
     try {
-      const contacts = await messageApi.getConversations(
-        search.trim() || undefined,
-      );
+      const response = await messageApi.getConversations({
+        search: cleanSearch || undefined,
+      });
       if (requestId === conversationListRequestId) {
-        conversationsList.value = contacts;
+        conversationsList.value = response.data;
+        nextCursor.value = response.meta?.next_cursor ?? null;
       }
     } finally {
       if (requestId === conversationListRequestId) {
         isLoadingConversations.value = false;
+      }
+    }
+  }
+
+  // Carrega a próxima página baseada no cursor retornado pelo Laravel (Infinite Scroll)
+  async function loadMoreConversations() {
+    if (
+      !nextCursor.value ||
+      isLoadingConversations.value ||
+      isLoadingMoreConversations.value
+    ) {
+      return;
+    }
+
+    const currentReqId = conversationListRequestId;
+    isLoadingMoreConversations.value = true;
+
+    try {
+      const response = await messageApi.getConversations({
+        search: currentSearch.value || undefined,
+        cursor: nextCursor.value,
+      });
+
+      if (currentReqId === conversationListRequestId) {
+        const existingIds = new Set(conversationsList.value.map((u) => u.id));
+        const newUsers = response.data.filter((u) => !existingIds.has(u.id));
+        conversationsList.value.push(...newUsers);
+        nextCursor.value = response.meta?.next_cursor ?? null;
+      }
+    } catch (error) {
+      console.error("Erro ao carregar próxima página de conversas:", error);
+    } finally {
+      if (currentReqId === conversationListRequestId) {
+        isLoadingMoreConversations.value = false;
       }
     }
   }
@@ -155,9 +208,13 @@ export const useMessageStore = defineStore("messages", () => {
     knownOnlineUsers,
     conversations,
     isLoadingConversations,
+    isLoadingMoreConversations,
     loadingConversations,
+    nextCursor,
+    hasMoreConversations,
     unifiedContacts, // <- Usar este computed no componente de listagem
     fetchConversationsList,
+    loadMoreConversations,
     fetchConversationMessages,
     sendMessage,
     addIncomingMessage,

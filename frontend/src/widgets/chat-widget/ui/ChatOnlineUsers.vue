@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from "vue";
+import { LoaderCircle } from "lucide-vue-next";
 import { useMessageStore } from "@/entities/message/model/message.store";
 import type { ChatUser } from "@/entities/message/model/types";
 import { Avatar, AvatarFallback, AvatarImage } from "@/shared/ui/avatar";
@@ -13,10 +14,13 @@ defineProps<{
 const emit = defineEmits<{
   openChat: [user: ChatUser];
   search: [query: string];
+  loadMore: [];
 }>();
 
 const messageStore = useMessageStore();
 const search = ref("");
+const listContainerRef = ref<HTMLElement | null>(null);
+
 const filteredContacts = computed(() => {
   const query = search.value.trim().toLocaleLowerCase();
   if (!query) return messageStore.unifiedContacts;
@@ -25,6 +29,24 @@ const filteredContacts = computed(() => {
     user.name.toLocaleLowerCase().includes(query),
   );
 });
+
+const handleScroll = (event: Event) => {
+  const target = event.target as HTMLElement;
+  if (!target) return;
+
+  const { scrollTop, scrollHeight, clientHeight } = target;
+  // Dispara quando estiver próximo ao final da lista (40px de margem)
+  if (scrollTop + clientHeight >= scrollHeight - 40) {
+    if (
+      messageStore.hasMoreConversations &&
+      !messageStore.isLoadingMoreConversations &&
+      !messageStore.isLoadingConversations
+    ) {
+      emit("loadMore");
+      messageStore.loadMoreConversations();
+    }
+  }
+};
 
 let searchTimeout: ReturnType<typeof setTimeout> | undefined;
 
@@ -42,7 +64,9 @@ onBeforeUnmount(() => {
   <!-- Conteúdo da Lista -->
   <div
     v-show="isOpen"
+    ref="listContainerRef"
     class="p-3 space-y-3 h-80 overflow-y-auto"
+    @scroll.passive="handleScroll"
   >
     <Input
       type="search"
@@ -53,9 +77,10 @@ onBeforeUnmount(() => {
 
     <div
       v-if="messageStore.isLoadingConversations"
-      class="py-3 text-center text-xs text-muted-foreground"
+      class="py-3 text-center text-xs text-muted-foreground flex items-center justify-center gap-1.5"
     >
-      A carregar conversas...
+      <LoaderCircle class="h-3.5 w-3.5 animate-spin text-primary" />
+      <span>A carregar conversas...</span>
     </div>
     <p
       v-else-if="error"
@@ -112,6 +137,15 @@ onBeforeUnmount(() => {
             </span>
           </div>
         </div>
+      </div>
+
+      <!-- Indicador de Carregamento da Próxima Página (Infinite Scroll) -->
+      <div
+        v-if="messageStore.isLoadingMoreConversations"
+        class="py-2 flex items-center justify-center gap-1.5 text-[11px] text-muted-foreground"
+      >
+        <LoaderCircle class="h-3.5 w-3.5 animate-spin text-primary" />
+        <span>Carregando mais...</span>
       </div>
     </div>
   </div>

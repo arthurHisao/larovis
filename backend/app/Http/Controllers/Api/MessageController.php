@@ -20,39 +20,36 @@ class MessageController extends Controller
         $userId = $request->user()->id;
         $search = $request->input('search');
 
-
-        $chatUsers = User::query()
-            ->select('id','name','email','avatar','department_id')
-            ->with('department:id,slug')
-            ->where('id', '!=', $userId)
-
+        $subQuery = User::query()
+            ->select('users.id', 'users.name', 'users.email', 'users.avatar', 'users.department_id', 'users.deleted_at')
+            ->where('users.id', '!=', $userId)
             ->when($search, function ($query, $search) {
-                $query->where('users.name', 'like', '%{$search}%');
+                $query->where('users.name', 'like', "%{$search}%");
             })
-
-            // 1. Busca a data da última mensagem trocada com este utilizador (se existir)
+            // Garante uma data válida (nunca NULL) para viabilizar a paginação por cursor
             ->selectSub(function ($query) use ($userId) {
                 $query->from('messages')
-                    ->selectRaw('MAX(messages.created_at)')
+                    ->selectRaw("COALESCE(MAX(messages.created_at), '1970-01-01 00:00:00')")
                     ->where(function ($q) use ($userId) {
                         $q->whereColumn('messages.receiver_id', 'users.id')
                             ->where('messages.sender_id', $userId)
-
-                        ->orWhere(function ($sub) use ($userId) {
-                            $sub->whereColumn('messages.sender_id', 'users.id')
-                                ->where('messages.receiver_id', $userId);
-                        });
+                            ->orWhere(function ($sub) use ($userId) {
+                                $sub->whereColumn('messages.sender_id', 'users.id')
+                                    ->where('messages.receiver_id', $userId);
+                            });
                     });
-            }, 'last_message_at')
+            }, 'last_interaction_at');
 
-            // 2. Ordena primeiro por quem tem mensagens, com base na data (mais recentes no topo)
-            // O PostgreSQL coloca valores NULL no fim quando usamos DESC, o que é perfeito aqui!
-            ->orderBy('last_message_at', 'asc')
-
-            // 3. Critério de desempate e para quem não tem conversas: ordem alfabética de A a Z
-            ->orderBy('users.name', 'asc')
-
-            ->get();
+        $chatUsers = User::query()
+            ->fromSub($subQuery, 'users')
+            ->with('department:id,slug')
+            // 1. Quem tem mensagens recentes fica no topo
+            ->orderBy('last_interaction_at', 'desc')
+            // 2. Quem não tem conversa (data 1970) fica ordenado por ordem alfabética
+            ->orderBy('name', 'asc')
+            // 3. Desempate determinístico para o cursor
+            ->orderBy('id', 'asc')
+            ->cursorPaginate(15);
             
         return ChatUserResource::collection($chatUsers);
     }
