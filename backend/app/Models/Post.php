@@ -6,10 +6,13 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 #[Fillable(['user_id', 'department_id', 'title', 'content', 'type', 'is_pinned'])]
 class Post extends Model
 {
+    use SoftDeletes; 
+    
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);

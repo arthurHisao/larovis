@@ -23,6 +23,8 @@ return new class extends Migration
             $table->foreignId('parent_id')->nullable()->constrained('messages')->onDelete('set null');
 
             $table->timestamps();
+
+            $table->softDeletes(); // Soft Delete deleted_at
         });
     }
 

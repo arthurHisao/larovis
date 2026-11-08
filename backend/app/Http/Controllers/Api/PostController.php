@@ -119,6 +119,38 @@ class PostController extends Controller
         return new PostResource($post);
     }
 
+    public function destroyPost(Request $request, Post $post)
+    {
+        if ($request->user()->id !== $post->user_id) {
+            abort(403, 'Ação não autorizada');
+        }
+        $post->delete();
+    }
+
+    public function updatePost(Request $request, Post $post)
+    {
+        if ($request->user()->id !== $post->user_id) {
+            abort(403, 'Ação não autorizada');
+        }
+
+        $validated = $request->validate([
+            'content'               => 'required|string',
+            'title'                 => 'nullable|string|max:255',
+            'post_type'             => 'nullable|string',
+            'type'                  => 'nullable|string',
+            'department_id'         => 'nullable',
+            'department_visibility' => 'nullable',
+            'images.*'              => 'nullable|image|max:10240',
+        ]);
+
+        $post->update($validated);
+
+        return response()->json([
+            'message' => 'Post atualizado com sucesso',
+            'post' => $post
+        ]);
+    }
+
     public function getPostComments(Request $request, int $postId): AnonymousResourceCollection 
     {
         $comments = PostComment::where('post_id', $postId)

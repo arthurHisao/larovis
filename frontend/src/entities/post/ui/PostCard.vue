@@ -16,16 +16,24 @@ import { Button } from "@/shared/ui/button";
 import { Avatar, AvatarImage, AvatarFallback } from "@/shared/ui/avatar";
 import CreateCommentForm from "@/features/create-comment/ui/CreateCommentForm.vue";
 import Skeleton from "@/shared/ui/skeleton/Skeleton.vue";
-import { ArrowUp } from "@lucide/vue";
+import { ArrowUp, Pencil, Trash } from "@lucide/vue";
+import DropdownMenu from "@/shared/ui/dropdown-menu/DropdownMenu.vue";
+import DropdownMenuTrigger from "@/shared/ui/dropdown-menu/DropdownMenuTrigger.vue";
+import DropdownMenuContent from "@/shared/ui/dropdown-menu/DropdownMenuContent.vue";
+import DropdownMenuItem from "@/shared/ui/dropdown-menu/DropdownMenuItem.vue";
+import { useAuthStore } from "@/entities/user/model/auth.store";
 
 const props = defineProps<{
   post?: Post;
   loading?: boolean;
 }>();
+const authStore = useAuthStore();
 
 // Sintaxe moderna do Vue 3.3+ (Tuple-based defineEmits)
 const emit = defineEmits<{
   like: [id: number];
+  edit: [post: Post];
+  delete: [postId: number];
 }>();
 
 const isCommentBoxExpanded = ref(false);
@@ -137,13 +145,33 @@ onUnmounted(() => {
           </p>
         </div>
       </div>
-      <Button
-        variant="ghost"
-        size="icon"
-        class="h-8 w-8 text-muted-foreground"
-      >
-        <MoreHorizontal class="h-4 w-4" />
-      </Button>
+
+      <DropdownMenu v-if="post.author.id === authStore.user?.id">
+        <DropdownMenuTrigger as-child>
+          <Button
+            variant="ghost"
+            size="icon"
+            class="h-8 w-8 text-muted-foreground"
+          >
+            <MoreHorizontal class="h-4 w-4" />
+          </Button>
+        </DropdownMenuTrigger>
+
+        <DropdownMenuContent>
+          <DropdownMenuItem @select="emit('edit', post)">
+            <Pencil />
+            Editar
+          </DropdownMenuItem>
+
+          <DropdownMenuItem
+            variant="destructive"
+            @select="emit('delete', post.id)"
+          >
+            <Trash />
+            Deletar
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </div>
 
     <!-- Conteúdo do Post -->

@@ -25,6 +25,8 @@ return new class extends Migration
             $table->enum('type', ['official', 'casual'])->default('casual');
             $table->boolean('is_pinned')->default(false);
             $table->timestamps();
+
+            $table->softDeletes(); // Soft Delete deleted_at
         });
     }
 

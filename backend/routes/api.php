@@ -34,6 +34,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/posts', [PostController::class, 'index']);
     Route::post('/posts', [PostController::class, 'store']); // Para criar posts
     Route::post('/posts/{post}/like', [PostController::class, 'toggleLike']);
+    Route::delete('/posts/{post}', [PostController::class, 'destroyPost']);
+    Route::put('/posts/{post}', [PostController::class, 'updatePost']);
+
     Route::post('/posts/{post}/comments', [PostController::class, 'storeComment']);
     Route::get('/posts/{post}/comments', [PostController::class, 'getPostComments']);
     Route::delete('/comments/{comment}', [PostController::class, 'destroyComment']);

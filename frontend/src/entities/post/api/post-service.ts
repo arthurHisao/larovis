@@ -21,4 +21,18 @@ export const postService = {
     const response = await api.post(`/posts/${postId}/like`);
     return response.data;
   },
+
+  // DELETE /api/posts/{id}
+  async deletePost(postId: number): Promise<void> {
+    await api.delete(`/posts/${postId}`);
+  },
+
+  // PUT /api/posts/{id}
+  async updatePost(
+    postId: number,
+    payload: { content: string },
+  ): Promise<Post> {
+    const response = await api.put(`/posts/${postId}`, payload);
+    return (response.data as any)?.post ?? response.data;
+  },
 };
