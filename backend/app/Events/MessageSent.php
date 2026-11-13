@@ -3,6 +3,7 @@
 namespace App\Events;
 
 use App\Http\Resources\MessageResource;
+use App\Models\Chat;
 use App\Models\Message;
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Broadcasting\PrivateChannel;
@@ -19,11 +20,10 @@ class MessageSent implements ShouldBroadcastNow
     /**
      * Create a new event instance.
      */
-    public function __construct(Message $message)
+    public function __construct(Message $message/*, Chat $chat*/)
     {
-        // Garante que a relação 'parentMessage' vem carregada se o mapper precisar dela
-        // $this->message = $message->loadMissing('parentMessage');
         $this->message = $message;
+        // $this->chat = $chat;
     }
     
     /**
@@ -34,7 +34,7 @@ class MessageSent implements ShouldBroadcastNow
     public function broadcastOn(): array
     {
         return [
-            new PrivateChannel('chat.' . $this->message->receiver_id),
+            new PrivateChannel('chat.' . $this->message->chat_id),
         ];
     }
 

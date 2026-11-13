@@ -27,6 +27,13 @@ function extractNextCursor(responseData: any): string | null {
 }
 
 export const messageApi = {
+  async ensureConversationRoom(userId: number): Promise<number> {
+    const response = await api.post<{ chat_id: number }>(
+      `/messages/${userId}/room`,
+    );
+    return response.data.chat_id;
+  },
+
   async getConversations(
     params?: GetConversationsParams,
   ): Promise<CursorPaginatedResponse<ChatUser>> {

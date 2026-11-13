@@ -19,6 +19,7 @@ export const useMessageStore = defineStore("messages", () => {
   const hasMoreConversations = computed(() => !!nextCursor.value);
 
   const conversations = ref<Record<number, ChatMessage[]>>({});
+  const chatIdsByUser = ref<Record<number, number>>({});
   const isLoadingConversations = ref(false);
   const loadingConversations = ref<Record<number, boolean>>({});
   let conversationListRequestId = 0;
@@ -124,6 +125,12 @@ export const useMessageStore = defineStore("messages", () => {
     }
   }
 
+  async function ensureConversationRoom(userId: number) {
+    const chatId = await messageApi.ensureConversationRoom(userId);
+    chatIdsByUser.value[userId] = chatId;
+    return chatId;
+  }
+
   async function sendMessage(
     receiverId: number,
     text: string,
@@ -136,16 +143,14 @@ export const useMessageStore = defineStore("messages", () => {
       ...response,
     };
 
-    if (!conversations.value[receiverId]) {
-      conversations.value[receiverId] = [];
-    }
-    conversations.value[receiverId].push(newMessage);
+    addIncomingMessage(receiverId, newMessage);
 
     return newMessage;
   }
 
   function addIncomingMessage(
-    message: ChatMessage & { receiver_id?: number; sender_id?: number },
+    conversationUserId: number,
+    message: ChatMessage,
   ) {
     const normalizedMsg: ChatMessage = {
       id: message.id,
@@ -160,17 +165,15 @@ export const useMessageStore = defineStore("messages", () => {
       refer: message.refer ?? [],
     };
 
-    const chatId = normalizedMsg.senderId;
-
-    if (!conversations.value[chatId]) {
-      conversations.value[chatId] = [];
+    if (!conversations.value[conversationUserId]) {
+      conversations.value[conversationUserId] = [];
     }
 
-    const exists = conversations.value[chatId].some(
+    const exists = conversations.value[conversationUserId].some(
       (m) => m.id === normalizedMsg.id,
     );
     if (!exists) {
-      conversations.value[chatId].push(normalizedMsg);
+      conversations.value[conversationUserId].push(normalizedMsg);
     }
   }
 
@@ -207,6 +210,7 @@ export const useMessageStore = defineStore("messages", () => {
     onlineUsers,
     knownOnlineUsers,
     conversations,
+    chatIdsByUser,
     isLoadingConversations,
     isLoadingMoreConversations,
     loadingConversations,
@@ -216,6 +220,7 @@ export const useMessageStore = defineStore("messages", () => {
     fetchConversationsList,
     loadMoreConversations,
     fetchConversationMessages,
+    ensureConversationRoom,
     sendMessage,
     addIncomingMessage,
     setOnlineUsers,

@@ -2,30 +2,32 @@
 import { onUnmounted, watch } from "vue";
 import { RouterView } from "vue-router";
 import { useAuthStore } from "@/entities/user/model/auth.store";
-import { subscribeToChatSocket } from "@/features/send-message/model/useChatSocket";
+import { subscribeToOnlineUsers } from "@/features/send-message/model/useChatSocket";
 import { connectEcho, disconnectEcho } from "./providers/echo";
 
 const authStore = useAuthStore();
-let stopChatSocket: (() => void) | undefined;
+let stopOnlineSocket: (() => void) | undefined;
 
 watch(
   () => [authStore.isInitialized, authStore.user?.id] as const,
   ([isInitialized, userId]) => {
     if (!isInitialized) return;
 
-    stopChatSocket?.();
-    stopChatSocket = undefined;
+    // Limpa inscrições anteriores e reconecta
+    stopOnlineSocket?.();
+    stopOnlineSocket = undefined;
     disconnectEcho();
 
     if (userId !== undefined) {
-      stopChatSocket = subscribeToChatSocket(connectEcho(), userId);
+      // Conecta ao canal global de presença 'online-users'
+      stopOnlineSocket = subscribeToOnlineUsers(connectEcho(), userId);
     }
   },
   { immediate: true },
 );
 
 onUnmounted(() => {
-  stopChatSocket?.();
+  stopOnlineSocket?.();
   disconnectEcho();
 });
 </script>

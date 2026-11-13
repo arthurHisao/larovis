@@ -53,6 +53,8 @@ onMounted(loadConversations);
 
 // Abre a aba do chat se ainda não estiver aberta
 const openChatWith = async (user: ChatUser) => {
+  conversationErrors.value[user.id] = "";
+
   if (!activeChatUserIds.value.includes(user.id)) {
     // Limite máximo de 3 chats abertos lado a lado para não quebrar a tela
     if (activeChatUserIds.value.length >= 3) {
@@ -64,14 +66,13 @@ const openChatWith = async (user: ChatUser) => {
     activeChatUserIds.value.push(user.id);
   }
 
-  conversationErrors.value[user.id] = "";
-
   try {
+    await messageStore.ensureConversationRoom(user.id);
     await messageStore.fetchConversationMessages(user.id);
   } catch (error) {
-    console.error(`Erro ao carregar conversa com ${user.name}:`, error);
+    console.error(`Erro ao abrir conversa com ${user.name}:`, error);
     conversationErrors.value[user.id] =
-      "Não foi possível carregar as mensagens.";
+      "Não foi possível abrir a conversa.";
   }
 };
 

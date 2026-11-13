@@ -1,5 +1,11 @@
 <script setup lang="ts">
-import { nextTick, watch, type ComponentPublicInstance } from "vue";
+import {
+  nextTick,
+  onUnmounted,
+  ref,
+  watch,
+  type ComponentPublicInstance,
+} from "vue";
 import { EllipsisVertical, Reply, Send, X } from "lucide-vue-next";
 
 import type { ChatMessage as ChatMessageType } from "@/entities/message/model/types";
@@ -14,6 +20,11 @@ import DropdownMenuGroup from "@/shared/ui/dropdown-menu/DropdownMenuGroup.vue";
 import DropdownMenuItem from "@/shared/ui/dropdown-menu/DropdownMenuItem.vue";
 import DropdownMenu from "@/shared/ui/dropdown-menu/DropdownMenu.vue";
 import Textarea from "@/shared/ui/textarea/Textarea.vue";
+import {
+  sendTypingSignal,
+  subscribeToChatRoom,
+} from "@/features/send-message/model/useChatSocket";
+import { connectEcho } from "@/app/providers/echo";
 
 const {
   activeChatUserIds,
@@ -38,6 +49,15 @@ const emit = defineEmits<{
 const authStore = useAuthStore();
 const messageStore = useMessageStore();
 const chatContainers: Record<number, HTMLElement | null> = {};
+
+// Estado de quem está a digitar por conversa { [userId]: { isTyping: boolean, userName: string } }
+const typingUsers = ref<
+  Record<number, { isTyping: boolean; userName?: string }>
+>({});
+const roomSubscriptions: Record<number, () => void> = {};
+const lastTypingSignals: Record<number, number> = {};
+let typingEcho: ReturnType<typeof connectEcho> | undefined;
+let typingSubscriptionUserId: number | undefined;
 
 const getUser = (id: number) =>
   messageStore.unifiedContacts.find((user) => user.id === id);
@@ -80,6 +100,90 @@ watch(
   },
   { deep: true, flush: "post" },
 );
+
+// Assina a sala pelo chat_id resolvido ao abrir a conversa.
+watch(
+  () => ({
+    userId: authStore.user?.id,
+    chatUserIds: [...activeChatUserIds],
+    chatIds: activeChatUserIds.map((id) => messageStore.chatIdsByUser[id]),
+  }),
+  ({ userId, chatUserIds }) => {
+    const activeIds = new Set(chatUserIds);
+
+    if (typingSubscriptionUserId !== userId) {
+      Object.entries(roomSubscriptions).forEach(([id, stop]) => {
+        stop();
+        delete roomSubscriptions[Number(id)];
+        delete typingUsers.value[Number(id)];
+        delete lastTypingSignals[Number(id)];
+      });
+      typingSubscriptionUserId = userId;
+    }
+
+    for (const [id, stop] of Object.entries(roomSubscriptions)) {
+      const chatUserId = Number(id);
+      if (!activeIds.has(chatUserId) || userId === undefined) {
+        stop();
+        delete roomSubscriptions[chatUserId];
+        delete typingUsers.value[chatUserId];
+        delete lastTypingSignals[chatUserId];
+      }
+    }
+
+    if (userId === undefined) {
+      typingEcho = undefined;
+      return;
+    }
+
+    typingEcho = connectEcho();
+
+    for (const chatUserId of chatUserIds) {
+      if (roomSubscriptions[chatUserId]) continue;
+
+      const chatId = messageStore.chatIdsByUser[chatUserId];
+      if (chatId === undefined) continue;
+
+      roomSubscriptions[chatUserId] = subscribeToChatRoom(
+        typingEcho,
+        chatId,
+        userId,
+        chatUserId,
+        (typingUser, isTyping) => {
+          typingUsers.value[chatUserId] = {
+            isTyping,
+            userName: typingUser.name,
+          };
+        },
+      );
+    }
+  },
+  { immediate: true },
+);
+
+onUnmounted(() => {
+  Object.values(roomSubscriptions).forEach((stop) => stop());
+});
+
+const handleDraftUpdate = (userId: number, text: string) => {
+  emit("updateDraft", userId, text);
+
+  const senderId = authStore.user?.id;
+  const senderName = authStore.user?.name ?? "Alguém";
+  if (senderId === undefined) return;
+
+  const chatId = messageStore.chatIdsByUser[userId];
+  if (chatId === undefined) return;
+
+  const now = Date.now();
+  const isTyping = text.trim().length > 0;
+  if (isTyping && now - (lastTypingSignals[userId] ?? 0) < 1000) return;
+
+  lastTypingSignals[userId] = now;
+  if (typingEcho) {
+    sendTypingSignal(typingEcho, chatId, senderId, senderName, isTyping);
+  }
+};
 </script>
 
 <template>
@@ -253,9 +357,20 @@ watch(
 
         <!-- Input individual -->
         <form
-          @submit.prevent="emit('send', userId, replyingToMessages[userId]?.id)"
+          @submit.prevent="
+            emit('send', userId, replyingToMessages[userId]?.id);
+            handleDraftUpdate(userId, '');
+          "
           class="p-2 border-t border-border flex flex-col gap-1.5 bg-card"
         >
+          <p
+            v-if="typingUsers[userId]?.isTyping"
+            class="px-2 text-[11px] italic text-muted-foreground animate-pulse"
+          >
+            {{ typingUsers[userId]?.userName || getUser(userId)?.name }} está
+            digitando...
+          </p>
+
           <div
             v-if="replyingToMessages[userId]"
             class="flex items-center justify-between gap-2 px-2 py-1.5 bg-muted/60 border-l-2 border-primary rounded-sm text-[11px] text-muted-foreground animate-fade-in"
@@ -284,7 +399,7 @@ watch(
           <div class="flex items-center gap-1.5 w-full">
             <Textarea
               :model-value="draftMessages[userId] ?? ''"
-              @update:model-value="emit('updateDraft', userId, String($event))"
+              @update:model-value="handleDraftUpdate(userId, String($event))"
               placeholder="Escreva algo..."
               class="min-h-8 max-h-15 text-xs bg-muted/40 flex-1 resize-none overflow-y-auto"
             />

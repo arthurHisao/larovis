@@ -43,6 +43,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Chat
     Route::get('/messages', [MessageController::class, 'index']);
+    Route::post('/messages/{user}/room', [MessageController::class, 'ensureRoom']);
     Route::get('/messages/{user}', [MessageController::class, 'show']);
     Route::post('/messages', [MessageController::class, 'store']);
 
