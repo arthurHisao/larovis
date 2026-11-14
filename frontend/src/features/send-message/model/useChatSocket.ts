@@ -43,6 +43,8 @@ export function subscribeToChatRoom(
   const channelName = `chat.${chatId}`;
   let typingTimeout: ReturnType<typeof setTimeout> | undefined;
 
+  messageStore.markAsRead(chatId);
+
   const channel = echo.private(channelName);
 
   // Escuta novas mensagens gravadas no banco
@@ -50,6 +52,15 @@ export function subscribeToChatRoom(
     if (event.message.senderId === currentUserId) return;
 
     messageStore.addIncomingMessage(conversationUserId, event.message);
+
+    messageStore.markAsRead(chatId);
+  });
+
+  // Listener para o emissor receber marcado como lido
+  channel.listen(".messages.read", (event: { userId: number }) => {
+    if (event.userId === currentUserId) return;
+
+    messageStore.setMessageAsReadByChatId(chatId);
   });
 
   // Escuta o sinal de "a digitar..." (Whisper)

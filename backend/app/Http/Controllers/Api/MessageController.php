@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Events\MessageRead;
 use App\Events\MessageSent;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\ChatUserResource;
@@ -130,5 +131,18 @@ class MessageController extends Controller
         }
 
         return $chat;
+    }
+
+    public function markAsRead(Request $request, Chat $chat): JsonResponse
+    {
+        $userId = $request->user()->id;
+
+        $chat->users()->updateExistingPivot($userId, [
+            'last_read_at' => now()
+        ]);
+
+        broadcast(new MessageRead($chat->id, $userId))->toOthers();
+
+        return response()->json(['success' => true]);
     }
 }

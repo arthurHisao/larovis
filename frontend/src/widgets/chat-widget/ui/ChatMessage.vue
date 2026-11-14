@@ -25,6 +25,7 @@ import {
   subscribeToChatRoom,
 } from "@/features/send-message/model/useChatSocket";
 import { connectEcho } from "@/app/providers/echo";
+import { Check, CheckCheck } from "@lucide/vue";
 
 const {
   activeChatUserIds,
@@ -313,11 +314,22 @@ const handleDraftUpdate = (userId: number, text: string) => {
 
                 <div
                   :class="[
-                    'text-right text-[9px]',
+                    'text-right text-[9px] inline-flex flex-row-reverse justify-between w-full items-center',
                     isOwnMessage(msg) ? 'text-muted' : 'text-foreground',
                   ]"
                 >
-                  {{ msg.time }}
+                  <Component
+                    :is="msg.isRead ? CheckCheck : Check"
+                    :class="[
+                      'h-3 w-3',
+                      msg.isRead
+                        ? 'text-blue-500'
+                        : isOwnMessage(msg)
+                          ? 'text-muted'
+                          : 'text-muted-foreground',
+                    ]"
+                  />
+                  <span>{{ msg.time }}</span>
                 </div>
 
                 <DropdownMenu :modal="false">
@@ -400,6 +412,10 @@ const handleDraftUpdate = (userId: number, text: string) => {
             <Textarea
               :model-value="draftMessages[userId] ?? ''"
               @update:model-value="handleDraftUpdate(userId, String($event))"
+              @keydown.enter.exact.prevent="
+                emit('send', userId, replyingToMessages[userId]?.id);
+                handleDraftUpdate(userId, '');
+              "
               placeholder="Escreva algo..."
               class="min-h-8 max-h-15 text-xs bg-muted/40 flex-1 resize-none overflow-y-auto"
             />

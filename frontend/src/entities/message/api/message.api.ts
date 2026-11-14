@@ -80,4 +80,8 @@ export const messageApi = {
     });
     return (response.data as any)?.data ?? response.data;
   },
+
+  async markAsRead(chatId: number): Promise<void> {
+    await api.post(`/chats/${chatId}/read`);
+  },
 };

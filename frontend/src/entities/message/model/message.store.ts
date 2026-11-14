@@ -205,6 +205,31 @@ export const useMessageStore = defineStore("messages", () => {
     knownOnlineUsers.value = [];
   }
 
+  async function markAsRead(chatId: number) {
+    try {
+      await messageApi.markAsRead(chatId);
+      setMessageAsReadByChatId(chatId);
+    } catch (error) {
+      console.error("Erro ao marcar mensagens como lidas: ", error);
+    }
+  }
+
+  function setMessageAsReadByChatId(chatId: number) {
+    // 1. Descobre qual é o userId com base no chatId guardado no store
+    const userId = Object.keys(chatIdsByUser.value).find(
+      (key) => chatIdsByUser.value[Number(key)] === chatId,
+    );
+
+    if (userId && conversations.value[Number(userId)]) {
+      conversations.value[Number(userId)] = conversations.value[
+        Number(userId)
+      ].map((msg) => ({
+        ...msg,
+        isRead: true,
+      }));
+    }
+  }
+
   return {
     conversationsList,
     onlineUsers,
@@ -227,5 +252,7 @@ export const useMessageStore = defineStore("messages", () => {
     addOnlineUser,
     removeOnlineUser,
     clearOnlineUsers,
+    markAsRead,
+    setMessageAsReadByChatId,
   };
 });

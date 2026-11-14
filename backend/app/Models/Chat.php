@@ -19,7 +19,9 @@ class Chat extends Model
 
     public function users(): BelongsToMany
     {
-        return $this->belongsToMany(User::class)->withPivot('is_group')->withTimestamps();
+        return $this->belongsToMany(User::class, 'chat_user')
+                ->withPivot('last_read_at') // <-- Adiciona isto aqui
+                ->withTimestamps();
     }
 
     public function messages(): HasMany
