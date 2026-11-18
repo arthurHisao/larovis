@@ -19,6 +19,8 @@ export const useMessageStore = defineStore("messages", () => {
   const hasMoreConversations = computed(() => !!nextCursor.value);
 
   const conversations = ref<Record<number, ChatMessage[]>>({});
+  const messagesNextCursor = ref<Record<number, string | null>>({});
+  const loadingMoreMessages = ref<Record<number, boolean>>({});
   const chatIdsByUser = ref<Record<number, number>>({});
   const isLoadingConversations = ref(false);
   const loadingConversations = ref<Record<number, boolean>>({});
@@ -117,11 +119,55 @@ export const useMessageStore = defineStore("messages", () => {
     if (loadingConversations.value[userId]) return;
 
     loadingConversations.value[userId] = true;
+    messagesNextCursor.value[userId] = null;
 
     try {
-      conversations.value[userId] = await messageApi.getConversation(userId);
+      const response = await messageApi.getConversation(userId);
+      // Como o backend retorna em ordem desc (mais recentes primeiro),
+      // invertemos para ficar em ordem cronológica (mais antigas no topo, recentes abaixo)
+      const chronologicallyOrdered = [...response.data].reverse();
+      conversations.value[userId] = chronologicallyOrdered;
+      messagesNextCursor.value[userId] = response.meta?.next_cursor ?? null;
     } finally {
       loadingConversations.value[userId] = false;
+    }
+  }
+
+  async function loadMoreMessages(userId: number): Promise<boolean> {
+    const cursor = messagesNextCursor.value[userId];
+    if (
+      !cursor ||
+      loadingConversations.value[userId] ||
+      loadingMoreMessages.value[userId]
+    ) {
+      return false;
+    }
+
+    loadingMoreMessages.value[userId] = true;
+
+    try {
+      const response = await messageApi.getConversation(userId, { cursor });
+      const olderMessages = [...response.data].reverse();
+
+      if (!conversations.value[userId]) {
+        conversations.value[userId] = [];
+      }
+
+      const existingIds = new Set(conversations.value[userId].map((m) => m.id));
+      const uniqueOlder = olderMessages.filter((m) => !existingIds.has(m.id));
+
+      // Prepend das mensagens mais antigas no início
+      conversations.value[userId] = [
+        ...uniqueOlder,
+        ...conversations.value[userId],
+      ];
+      messagesNextCursor.value[userId] = response.meta?.next_cursor ?? null;
+      return uniqueOlder.length > 0;
+    } catch (error) {
+      console.error(`Erro ao carregar mais mensagens de ${userId}:`, error);
+      return false;
+    } finally {
+      loadingMoreMessages.value[userId] = false;
     }
   }
 
@@ -235,6 +281,8 @@ export const useMessageStore = defineStore("messages", () => {
     onlineUsers,
     knownOnlineUsers,
     conversations,
+    messagesNextCursor,
+    loadingMoreMessages,
     chatIdsByUser,
     isLoadingConversations,
     isLoadingMoreConversations,
@@ -245,6 +293,7 @@ export const useMessageStore = defineStore("messages", () => {
     fetchConversationsList,
     loadMoreConversations,
     fetchConversationMessages,
+    loadMoreMessages,
     ensureConversationRoom,
     sendMessage,
     addIncomingMessage,

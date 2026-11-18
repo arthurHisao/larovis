@@ -26,6 +26,11 @@ function extractNextCursor(responseData: any): string | null {
   return null;
 }
 
+export interface GetConversationMessagesParams {
+  cursor?: string | null;
+  per_page?: number;
+}
+
 export const messageApi = {
   async ensureConversationRoom(userId: number): Promise<number> {
     const response = await api.post<{ chat_id: number }>(
@@ -63,9 +68,34 @@ export const messageApi = {
     };
   },
 
-  async getConversation(userId: number): Promise<ChatMessage[]> {
-    const response = await api.get<ChatMessage[]>(`/messages/${userId}`);
-    return (response.data as any)?.data ?? response.data ?? [];
+  async getConversation(
+    userId: number,
+    params?: GetConversationMessagesParams,
+  ): Promise<CursorPaginatedResponse<ChatMessage>> {
+    const response = await api.get(`/messages/${userId}`, {
+      params: {
+        ...(params?.cursor ? { cursor: params.cursor } : {}),
+        ...(params?.per_page ? { per_page: params.per_page } : {}),
+      },
+    });
+
+    const raw = response.data;
+    const items: ChatMessage[] = Array.isArray(raw)
+      ? raw
+      : Array.isArray(raw?.data)
+        ? raw.data
+        : [];
+
+    const nextCursor = extractNextCursor(raw);
+
+    return {
+      data: items,
+      links: raw?.links,
+      meta: {
+        ...raw?.meta,
+        next_cursor: nextCursor,
+      },
+    };
   },
 
   async sendMessage(

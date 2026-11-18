@@ -11,12 +11,15 @@ import type {
 } from "@/entities/message/model/types";
 import ChatOnlineUsers from "./ChatOnlineUsers.vue";
 import ChatMessage from "./ChatMessage.vue";
+import { playBellSound } from "@/shared/lib/play-bell-sound.ts";
 
 // Controlo do Widget Principal (Lista de Contatos)
 const isListOpen = ref(false);
 
 // Controlo das Janelas/Abas de Chat Abertas (Guarda os IDs dos Utilizadores)
 const activeChatUserIds = ref<number[]>([]);
+// Controlo das Janelas de Chat Minimizadas/Ocultas
+const collapsedChatUserIds = ref<number[]>([]);
 
 // Mensagens digitadas por utilizador { userId: "texto..." }
 const draftMessages = ref<Record<number, string>>({});
@@ -51,6 +54,16 @@ const loadMoreConversations = async () => {
 
 onMounted(loadConversations);
 
+// Alterna estado minimizado/expandido de uma janela
+const toggleChatCollapse = (userId: number) => {
+  const index = collapsedChatUserIds.value.indexOf(userId);
+  if (index === -1) {
+    collapsedChatUserIds.value.push(userId);
+  } else {
+    collapsedChatUserIds.value.splice(index, 1);
+  }
+};
+
 // Abre a aba do chat se ainda não estiver aberta
 const openChatWith = async (user: ChatUser) => {
   conversationErrors.value[user.id] = "";
@@ -61,23 +74,33 @@ const openChatWith = async (user: ChatUser) => {
       const closedUserId = activeChatUserIds.value.shift();
       if (closedUserId !== undefined) {
         delete replyingToMessages.value[closedUserId];
+        collapsedChatUserIds.value = collapsedChatUserIds.value.filter(
+          (id) => id !== closedUserId,
+        );
       }
     }
     activeChatUserIds.value.push(user.id);
   }
+
+  // Se a janela estava minimizada/oculta, expande-a automaticamente ao clicar no contato
+  collapsedChatUserIds.value = collapsedChatUserIds.value.filter(
+    (id) => id !== user.id,
+  );
 
   try {
     await messageStore.ensureConversationRoom(user.id);
     await messageStore.fetchConversationMessages(user.id);
   } catch (error) {
     console.error(`Erro ao abrir conversa com ${user.name}:`, error);
-    conversationErrors.value[user.id] =
-      "Não foi possível abrir a conversa.";
+    conversationErrors.value[user.id] = "Não foi possível abrir a conversa.";
   }
 };
 
 const closeChat = (userId: number) => {
   activeChatUserIds.value = activeChatUserIds.value.filter(
+    (id) => id !== userId,
+  );
+  collapsedChatUserIds.value = collapsedChatUserIds.value.filter(
     (id) => id !== userId,
   );
   delete replyingToMessages.value[userId];
@@ -92,6 +115,7 @@ const sendMessage = async (userId: number, parentId?: number) => {
     await messageStore.sendMessage(userId, text, parentId);
     draftMessages.value[userId] = "";
     delete replyingToMessages.value[userId];
+    playBellSound();
   } catch (error) {
     console.error("Erro ao enviar mensagem:", error);
   }
@@ -160,6 +184,7 @@ const updateDraft = (userId: number, text: string) => {
     <!-- 2. JANELAS DE CHAT ABERTAS (LADO A LADO) -->
     <ChatMessage
       :active-chat-user-ids="activeChatUserIds"
+      :collapsed-chat-user-ids="collapsedChatUserIds"
       :conversation-errors="conversationErrors"
       :draft-messages="draftMessages"
       :replying-to-messages="replyingToMessages"
@@ -168,6 +193,7 @@ const updateDraft = (userId: number, text: string) => {
       @reply="startReply"
       @cancel-reply="cancelReply"
       @update-draft="updateDraft"
+      @toggle-collapse="toggleChatCollapse"
     />
   </div>
 </template>

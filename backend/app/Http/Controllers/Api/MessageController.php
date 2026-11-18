@@ -66,14 +66,16 @@ class MessageController extends Controller
         $authUserId = $request->user()->id;
         $chat = $this->findOrCreateDirectChat($authUserId, $user->id);
 
+        $perPage = min((int) $request->input('per_page', 25), 100);
+
         $messages = $chat->messages()
             ->with([
                 'sender:id,name,avatar',
                 'parentMessage:id,text,sender_id',
             ])
-            ->orderBy('created_at', 'asc')
-            ->orderBy('id', 'asc')
-            ->get();
+            ->orderBy('created_at', 'desc')
+            ->orderBy('id', 'desc')
+            ->cursorPaginate($perPage);
 
         return MessageResource::collection($messages);
     }

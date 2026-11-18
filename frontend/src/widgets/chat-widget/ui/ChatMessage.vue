@@ -6,7 +6,15 @@ import {
   watch,
   type ComponentPublicInstance,
 } from "vue";
-import { EllipsisVertical, Reply, Send, X } from "lucide-vue-next";
+import {
+  ChevronDown,
+  ChevronUp,
+  EllipsisVertical,
+  LoaderCircle,
+  Reply,
+  Send,
+  X,
+} from "lucide-vue-next";
 
 import type { ChatMessage as ChatMessageType } from "@/entities/message/model/types";
 import { useAuthStore } from "@/entities/user/model/auth.store";
@@ -32,11 +40,13 @@ const {
   conversationErrors,
   draftMessages,
   replyingToMessages,
+  collapsedChatUserIds = [],
 } = defineProps<{
   activeChatUserIds: number[];
   conversationErrors: Record<number, string>;
   draftMessages: Record<number, string>;
   replyingToMessages: Record<number, ChatMessageType | undefined>;
+  collapsedChatUserIds?: number[];
 }>();
 
 const emit = defineEmits<{
@@ -45,11 +55,26 @@ const emit = defineEmits<{
   reply: [userId: number, message: ChatMessageType];
   cancelReply: [userId: number];
   updateDraft: [userId: number, text: string];
+  toggleCollapse: [userId: number];
 }>();
 
 const authStore = useAuthStore();
 const messageStore = useMessageStore();
 const chatContainers: Record<number, HTMLElement | null> = {};
+
+const isCollapsed = (userId: number) => {
+  return collapsedChatUserIds.includes(userId);
+};
+
+const handleToggleCollapse = (userId: number) => {
+  const willExpand = isCollapsed(userId);
+  emit("toggleCollapse", userId);
+  if (willExpand) {
+    nextTick(() => {
+      scrollToBottom(userId);
+    });
+  }
+};
 
 // Estado de quem está a digitar por conversa { [userId]: { isTyping: boolean, userName: string } }
 const typingUsers = ref<
@@ -81,6 +106,9 @@ const setChatContainer = (
   chatContainers[userId] = element instanceof HTMLElement ? element : null;
 };
 
+const isPrependingMessages = ref<Record<number, boolean>>({});
+const lastSeenBottomMessageId: Record<number, number | undefined> = {};
+
 const scrollToBottom = (userId: number) => {
   nextTick(() => {
     const element = chatContainers[userId];
@@ -90,16 +118,64 @@ const scrollToBottom = (userId: number) => {
   });
 };
 
+const handleChatScroll = async (userId: number, event: Event) => {
+  const target = event.target as HTMLElement;
+  if (!target) return;
+
+  // Quando o scroll estiver próximo do topo (<= 40px)
+  if (target.scrollTop <= 40) {
+    if (
+      messageStore.messagesNextCursor[userId] &&
+      !messageStore.loadingMoreMessages[userId] &&
+      !messageStore.loadingConversations[userId]
+    ) {
+      const oldScrollHeight = target.scrollHeight;
+      const oldScrollTop = target.scrollTop;
+
+      isPrependingMessages.value[userId] = true;
+      try {
+        const loaded = await messageStore.loadMoreMessages(userId);
+        if (loaded) {
+          await nextTick();
+          const newScrollHeight = target.scrollHeight;
+          target.scrollTop = oldScrollTop + (newScrollHeight - oldScrollHeight);
+        }
+      } finally {
+        await nextTick();
+        isPrependingMessages.value[userId] = false;
+      }
+    }
+  }
+};
+
 watch(
   () => [messageStore.conversations, activeChatUserIds],
   () => {
     for (const userId of activeChatUserIds) {
-      if (messageStore.conversations[userId]) {
+      if (isPrependingMessages.value[userId]) continue;
+
+      const currentMsgs = messageStore.conversations[userId] || [];
+      const lastMsgId = currentMsgs[currentMsgs.length - 1]?.id;
+      if (lastMsgId !== lastSeenBottomMessageId[userId]) {
+        lastSeenBottomMessageId[userId] = lastMsgId;
         scrollToBottom(userId);
       }
     }
   },
   { deep: true, flush: "post" },
+);
+
+watch(
+  () => [...collapsedChatUserIds],
+  (newVal, oldVal) => {
+    for (const userId of activeChatUserIds) {
+      const wasCollapsed = oldVal?.includes(userId) ?? false;
+      const isNowCollapsed = newVal?.includes(userId) ?? false;
+      if (wasCollapsed && !isNowCollapsed) {
+        scrollToBottom(userId);
+      }
+    }
+  },
 );
 
 // Assina a sala pelo chat_id resolvido ao abrir a conversa.
@@ -199,7 +275,9 @@ const handleDraftUpdate = (userId: number, text: string) => {
     >
       <!-- Header da Janela Individual -->
       <div
-        class="flex items-center justify-between p-2.5 bg-card border-b border-border/60"
+        class="flex items-center justify-between p-2.5 bg-card hover:bg-muted/30 transition-colors cursor-pointer select-none"
+        :class="{ 'border-b border-border/60': !isCollapsed(userId) }"
+        @click="handleToggleCollapse(userId)"
       >
         <div class="flex items-center gap-2">
           <div class="relative">
@@ -219,10 +297,19 @@ const handleDraftUpdate = (userId: number, text: string) => {
           </div>
 
           <div class="inline-flex items-center flex-col truncate max-w-30">
-            <span class="font-semibold text-xs text-foreground">
+            <span class="font-semibold text-xs text-foreground truncate w-full">
               {{ getUser(userId)?.name }}
             </span>
-            <span class="w-full font-thin text-[11px]">
+            <span
+              v-if="typingUsers[userId]?.isTyping"
+              class="w-full font-thin text-[11px] truncate text-primary animate-pulse"
+            >
+              digitando...
+            </span>
+            <span
+              v-else
+              class="w-full font-thin text-[11px] truncate"
+            >
               {{ getUser(userId)?.department }}
             </span>
           </div>
@@ -232,8 +319,20 @@ const handleDraftUpdate = (userId: number, text: string) => {
           <Button
             variant="ghost"
             size="icon"
-            class="h-6 w-6 text-muted-foreground hover:text-foreground"
-            @click="emit('close', userId)"
+            class="h-6 w-6 text-muted-foreground hover:text-foreground cursor-pointer"
+            :title="
+              isCollapsed(userId) ? 'Expandir conversa' : 'Minimizar conversa'
+            "
+            @click.stop="handleToggleCollapse(userId)"
+          >
+          </Button>
+
+          <Button
+            variant="ghost"
+            size="icon"
+            class="h-6 w-6 text-muted-foreground hover:text-foreground cursor-pointer"
+            title="Fechar conversa"
+            @click.stop="emit('close', userId)"
           >
             <X class="h-3.5 w-3.5" />
           </Button>
@@ -241,17 +340,43 @@ const handleDraftUpdate = (userId: number, text: string) => {
       </div>
 
       <!-- Corpo da Janela Individual -->
-      <div class="h-80 flex flex-col justify-between">
+      <div
+        v-show="!isCollapsed(userId)"
+        class="h-80 flex flex-col justify-between"
+      >
         <!-- Mensagem  -->
         <div
           :ref="(el) => setChatContainer(userId, el)"
           class="px-2 py-5 space-y-4 overflow-y-auto flex-1"
+          @scroll.passive="(e) => handleChatScroll(userId, e)"
         >
+          <!-- Indicador de carregamento de mensagens anteriores (Infinite Scroll para o topo) -->
+          <div
+            v-if="messageStore.loadingMoreMessages[userId]"
+            class="py-2 flex items-center justify-center gap-1.5 text-[11px] text-muted-foreground"
+          >
+            <LoaderCircle class="h-3.5 w-3.5 animate-spin text-primary" />
+            <span>Carregando mensagens anteriores...</span>
+          </div>
+
+          <!-- Início da conversa -->
+          <div
+            v-else-if="
+              !messageStore.messagesNextCursor[userId] &&
+              !messageStore.loadingConversations[userId] &&
+              (messageStore.conversations[userId]?.length || 0) > 0
+            "
+            class="py-1 text-center text-[10px] text-muted-foreground/60 select-none"
+          >
+            Início da conversa
+          </div>
+
           <p
             v-if="messageStore.loadingConversations[userId]"
-            class="py-2 text-center text-xs text-muted-foreground"
+            class="py-2 text-center text-xs text-muted-foreground flex items-center justify-center gap-1.5"
           >
-            Carregando mensagens...
+            <LoaderCircle class="h-3.5 w-3.5 animate-spin text-primary" />
+            <span>Carregando mensagens...</span>
           </p>
           <p
             v-else-if="conversationErrors[userId]"
