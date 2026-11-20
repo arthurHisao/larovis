@@ -65,7 +65,7 @@ onBeforeUnmount(() => {
   <div
     v-show="isOpen"
     ref="listContainerRef"
-    class="p-3 space-y-3 h-80 overflow-y-auto"
+    class="p-3 space-y-3 h-96 overflow-y-auto"
     @scroll.passive="handleScroll"
   >
     <Input

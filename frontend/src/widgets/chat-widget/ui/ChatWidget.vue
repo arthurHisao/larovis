@@ -104,6 +104,7 @@ const closeChat = (userId: number) => {
     (id) => id !== userId,
   );
   delete replyingToMessages.value[userId];
+  messageStore.clearConversation(userId);
 };
 
 const sendMessage = async (userId: number, parentId?: number) => {
@@ -171,13 +172,24 @@ const updateDraft = (userId: number, text: string) => {
         </Button>
 
         <!-- 1. Lista de utilizadores online e conversas ativas -->
-        <ChatOnlineUsers
-          :is-open="isListOpen"
-          :error="onlineUsersError"
-          @open-chat="openChatWith"
-          @search="loadConversations"
-          @load-more="loadMoreConversations"
-        />
+        <Transition
+          enter-active-class="transition-all duration-300 ease-out overflow-hidden"
+          enter-from-class="max-h-0 opacity-0"
+          enter-to-class="max-h-120 opacity-100"
+          leave-active-class="transition-all duration-300 ease-in overflow-hidden"
+          leave-from-class="max-h-120 opacity-100"
+          leave-to-class="max-h-0 opacity-0"
+        >
+          <div v-show="isListOpen">
+            <ChatOnlineUsers
+              :is-open="isListOpen"
+              :error="onlineUsersError"
+              @open-chat="openChatWith"
+              @search="loadConversations"
+              @load-more="loadMoreConversations"
+            />
+          </div>
+        </Transition>
       </Card>
     </div>
 

@@ -253,8 +253,5 @@ onMounted(() => {
         </div>
       </form>
     </div>
-
-    <!-- Chat -->
-    <ChatWidget />
   </div>
 </template>

@@ -35,19 +35,18 @@ import {
 import { connectEcho } from "@/app/providers/echo";
 import { Check, CheckCheck } from "@lucide/vue";
 
-const {
-  activeChatUserIds,
-  conversationErrors,
-  draftMessages,
-  replyingToMessages,
-  collapsedChatUserIds = [],
-} = defineProps<{
-  activeChatUserIds: number[];
-  conversationErrors: Record<number, string>;
-  draftMessages: Record<number, string>;
-  replyingToMessages: Record<number, ChatMessageType | undefined>;
-  collapsedChatUserIds?: number[];
-}>();
+const props = withDefaults(
+  defineProps<{
+    activeChatUserIds: number[];
+    conversationErrors: Record<number, string>;
+    draftMessages: Record<number, string>;
+    replyingToMessages: Record<number, ChatMessageType | undefined>;
+    collapsedChatUserIds?: number[];
+  }>(),
+  {
+    collapsedChatUserIds: () => [],
+  },
+);
 
 const emit = defineEmits<{
   close: [userId: number];
@@ -63,7 +62,7 @@ const messageStore = useMessageStore();
 const chatContainers: Record<number, HTMLElement | null> = {};
 
 const isCollapsed = (userId: number) => {
-  return collapsedChatUserIds.includes(userId);
+  return props.collapsedChatUserIds.includes(userId);
 };
 
 const handleToggleCollapse = (userId: number) => {
@@ -103,7 +102,12 @@ const setChatContainer = (
   userId: number,
   element: Element | ComponentPublicInstance | null,
 ) => {
+  const isNewElement = !chatContainers[userId] && element instanceof HTMLElement;
   chatContainers[userId] = element instanceof HTMLElement ? element : null;
+
+  if (isNewElement) {
+    scrollToBottom(userId);
+  }
 };
 
 const isPrependingMessages = ref<Record<number, boolean>>({});
@@ -149,9 +153,9 @@ const handleChatScroll = async (userId: number, event: Event) => {
 };
 
 watch(
-  () => [messageStore.conversations, activeChatUserIds],
+  () => [messageStore.conversations, props.activeChatUserIds],
   () => {
-    for (const userId of activeChatUserIds) {
+    for (const userId of props.activeChatUserIds) {
       if (isPrependingMessages.value[userId]) continue;
 
       const currentMsgs = messageStore.conversations[userId] || [];
@@ -166,9 +170,9 @@ watch(
 );
 
 watch(
-  () => [...collapsedChatUserIds],
+  () => [...props.collapsedChatUserIds],
   (newVal, oldVal) => {
-    for (const userId of activeChatUserIds) {
+    for (const userId of props.activeChatUserIds) {
       const wasCollapsed = oldVal?.includes(userId) ?? false;
       const isNowCollapsed = newVal?.includes(userId) ?? false;
       if (wasCollapsed && !isNowCollapsed) {
@@ -178,12 +182,39 @@ watch(
   },
 );
 
+// Limpa dados locais ao fechar a conversa e dispara scroll quando um novo chat é aberto
+watch(
+  () => [...props.activeChatUserIds],
+  (newIds, oldIds) => {
+    // Chats fechados
+    if (oldIds) {
+      for (const id of oldIds) {
+        if (!newIds.includes(id)) {
+          delete chatContainers[id];
+          delete lastSeenBottomMessageId[id];
+          delete isPrependingMessages.value[id];
+        }
+      }
+    }
+
+    // Chats recém-abertos
+    for (const id of newIds) {
+      if (!oldIds || !oldIds.includes(id)) {
+        delete lastSeenBottomMessageId[id];
+        scrollToBottom(id);
+      }
+    }
+  },
+);
+
 // Assina a sala pelo chat_id resolvido ao abrir a conversa.
 watch(
   () => ({
     userId: authStore.user?.id,
-    chatUserIds: [...activeChatUserIds],
-    chatIds: activeChatUserIds.map((id) => messageStore.chatIdsByUser[id]),
+    chatUserIds: [...props.activeChatUserIds],
+    chatIds: props.activeChatUserIds.map(
+      (id) => messageStore.chatIdsByUser[id],
+    ),
   }),
   ({ userId, chatUserIds }) => {
     const activeIds = new Set(chatUserIds);
@@ -325,6 +356,14 @@ const handleDraftUpdate = (userId: number, text: string) => {
             "
             @click.stop="handleToggleCollapse(userId)"
           >
+            <ChevronUp
+              v-if="isCollapsed(userId)"
+              class="h-3.5 w-3.5"
+            />
+            <ChevronDown
+              v-else
+              class="h-3.5 w-3.5"
+            />
           </Button>
 
           <Button
@@ -339,221 +378,232 @@ const handleDraftUpdate = (userId: number, text: string) => {
         </div>
       </div>
 
-      <!-- Corpo da Janela Individual -->
-      <div
-        v-show="!isCollapsed(userId)"
-        class="h-80 flex flex-col justify-between"
+      <!-- Corpo da Janela Individual com animação suave de subir/descer -->
+      <Transition
+        enter-active-class="transition-all duration-300 ease-out overflow-hidden"
+        enter-from-class="max-h-0 opacity-0"
+        enter-to-class="max-h-120 opacity-100"
+        leave-active-class="transition-all duration-300 ease-in overflow-hidden"
+        leave-from-class="max-h-120 opacity-100"
+        leave-to-class="max-h-0 opacity-0"
       >
-        <!-- Mensagem  -->
         <div
-          :ref="(el) => setChatContainer(userId, el)"
-          class="px-2 py-5 space-y-4 overflow-y-auto flex-1"
-          @scroll.passive="(e) => handleChatScroll(userId, e)"
+          v-show="!isCollapsed(userId)"
+          class="h-96 flex flex-col justify-between"
         >
-          <!-- Indicador de carregamento de mensagens anteriores (Infinite Scroll para o topo) -->
+          <!-- Mensagem  -->
           <div
-            v-if="messageStore.loadingMoreMessages[userId]"
-            class="py-2 flex items-center justify-center gap-1.5 text-[11px] text-muted-foreground"
+            :ref="(el) => setChatContainer(userId, el)"
+            class="px-2 py-5 space-y-4 overflow-y-auto flex-1"
+            @scroll.passive="(e) => handleChatScroll(userId, e)"
           >
-            <LoaderCircle class="h-3.5 w-3.5 animate-spin text-primary" />
-            <span>Carregando mensagens anteriores...</span>
-          </div>
-
-          <!-- Início da conversa -->
-          <div
-            v-else-if="
-              !messageStore.messagesNextCursor[userId] &&
-              !messageStore.loadingConversations[userId] &&
-              (messageStore.conversations[userId]?.length || 0) > 0
-            "
-            class="py-1 text-center text-[10px] text-muted-foreground/60 select-none"
-          >
-            Início da conversa
-          </div>
-
-          <p
-            v-if="messageStore.loadingConversations[userId]"
-            class="py-2 text-center text-xs text-muted-foreground flex items-center justify-center gap-1.5"
-          >
-            <LoaderCircle class="h-3.5 w-3.5 animate-spin text-primary" />
-            <span>Carregando mensagens...</span>
-          </p>
-          <p
-            v-else-if="conversationErrors[userId]"
-            class="py-2 text-center text-xs text-destructive"
-          >
-            {{ conversationErrors[userId] }}
-          </p>
-
-          <div
-            v-for="msg in messageStore.conversations[userId] || []"
-            :key="msg.id"
-            :class="[
-              'flex items-baseline relative',
-              isOwnMessage(msg)
-                ? 'flex-row-reverse text-primary-foreground'
-                : 'flex-row text-foreground',
-            ]"
-          >
-            <Avatar
-              :class="[
-                'h-6 w-6 shrink-0 absolute top-0 -translate-y-1',
-                isOwnMessage(msg) ? 'right-0' : 'left-0',
-              ]"
+            <!-- Indicador de carregamento de mensagens anteriores (Infinite Scroll para o topo) -->
+            <div
+              v-if="messageStore.loadingMoreMessages[userId]"
+              class="py-2 flex items-center justify-center gap-1.5 text-[11px] text-muted-foreground"
             >
-              <AvatarImage
-                :src="getMessageUser(msg)?.avatar ?? ''"
-                :alt="getMessageUser(msg)?.name"
-              />
-              <AvatarFallback>
-                {{
-                  getMessageUser(msg)?.name?.substring(0, 2).toUpperCase() ??
-                  "?"
-                }}
-              </AvatarFallback>
-            </Avatar>
+              <LoaderCircle class="h-3.5 w-3.5 animate-spin text-primary" />
+              <span>Carregando mensagens anteriores...</span>
+            </div>
+
+            <!-- Início da conversa -->
+            <div
+              v-else-if="
+                !messageStore.messagesNextCursor[userId] &&
+                !messageStore.loadingConversations[userId] &&
+                (messageStore.conversations[userId]?.length || 0) > 0
+              "
+              class="py-1 text-center text-[10px] text-muted-foreground/60 select-none"
+            >
+              Início da conversa
+            </div>
+
+            <p
+              v-if="messageStore.loadingConversations[userId]"
+              class="py-2 text-center text-xs text-muted-foreground flex items-center justify-center gap-1.5"
+            >
+              <LoaderCircle class="h-3.5 w-3.5 animate-spin text-primary" />
+              <span>Carregando mensagens...</span>
+            </p>
+            <p
+              v-else-if="conversationErrors[userId]"
+              class="py-2 text-center text-xs text-destructive"
+            >
+              {{ conversationErrors[userId] }}
+            </p>
 
             <div
-              class="flex max-w-[85%] flex-col"
-              :class="isOwnMessage(msg) ? 'items-end mr-7' : 'items-start ml-7'"
+              v-for="msg in messageStore.conversations[userId] || []"
+              :key="msg.id"
+              :class="[
+                'flex items-baseline relative',
+                isOwnMessage(msg)
+                  ? 'flex-row-reverse text-primary-foreground'
+                  : 'flex-row text-foreground',
+              ]"
             >
-              <div
+              <Avatar
                 :class="[
-                  'px-2.5 py-2.5 text-xs relative min-w-16 max-w-32 text-left',
-                  isOwnMessage(msg)
-                    ? 'bg-primary text-primary-foreground rounded-lg rounded-tr-none rounded-br-xl'
-                    : 'bg-muted text-foreground rounded-lg rounded-tl-none rounded-bl-xl',
+                  'h-6 w-6 shrink-0 absolute top-0 -translate-y-1',
+                  isOwnMessage(msg) ? 'right-0' : 'left-0',
                 ]"
               >
-                <div
-                  v-if="msg.refer?.length"
-                  class="bg-rose-950/40 max-h-10 mb-1 p-1 rounded-sm text-[10px] line-clamp-2 wrap-break-words"
-                >
-                  <span class="font-semibold">
-                    {{ getSenderName(msg.refer[0]?.senderId) }}:
-                  </span>
-                  {{ msg.refer[0]?.text }}
-                </div>
+                <AvatarImage
+                  :src="getMessageUser(msg)?.avatar ?? ''"
+                  :alt="getMessageUser(msg)?.name"
+                />
+                <AvatarFallback>
+                  {{
+                    getMessageUser(msg)?.name?.substring(0, 2).toUpperCase() ??
+                    "?"
+                  }}
+                </AvatarFallback>
+              </Avatar>
 
-                <p class="mb-1.5 wrap-break-word">{{ msg.text }}</p>
-
+              <div
+                class="flex max-w-[85%] flex-col"
+                :class="
+                  isOwnMessage(msg) ? 'items-end mr-7' : 'items-start ml-7'
+                "
+              >
                 <div
                   :class="[
-                    'text-right text-[9px] inline-flex flex-row-reverse justify-between w-full items-center',
-                    isOwnMessage(msg) ? 'text-muted' : 'text-foreground',
+                    'px-2.5 py-2.5 text-xs relative min-w-16 max-w-32 text-left',
+                    isOwnMessage(msg)
+                      ? 'bg-primary text-primary-foreground rounded-lg rounded-tr-none rounded-br-xl'
+                      : 'bg-muted text-foreground rounded-lg rounded-tl-none rounded-bl-xl',
                   ]"
                 >
-                  <Component
-                    :is="msg.isRead ? CheckCheck : Check"
-                    :class="[
-                      'h-3 w-3',
-                      msg.isRead
-                        ? 'text-blue-500'
-                        : isOwnMessage(msg)
-                          ? 'text-muted'
-                          : 'text-muted-foreground',
-                    ]"
-                  />
-                  <span>{{ msg.time }}</span>
-                </div>
-
-                <DropdownMenu :modal="false">
-                  <DropdownMenuTrigger as-child>
-                    <Button
-                      :size="'10px'"
-                      variant="ghost"
-                      :class="[
-                        'absolute top-0.5 rounded-full ',
-                        isOwnMessage(msg) ? '-left-4.5 ' : '-right-4.5',
-                      ]"
-                    >
-                      <EllipsisVertical class="size-4 text-primary" />
-                    </Button>
-                  </DropdownMenuTrigger>
-
-                  <DropdownMenuContent
-                    :align="isOwnMessage(msg) ? 'end' : 'start'"
-                    :side="isOwnMessage(msg) ? 'left' : 'right'"
-                    :side-offset="0"
-                    :align-offset="isOwnMessage(msg) ? -20 : -2"
-                    class="min-w-10 max-w-30 p-0"
+                  <div
+                    v-if="msg.refer?.length"
+                    class="bg-rose-950/40 max-h-10 mb-1 p-1 rounded-sm text-[10px] line-clamp-2 wrap-break-words"
                   >
-                    <DropdownMenuGroup>
-                      <DropdownMenuItem @select="emit('reply', userId, msg)">
-                        <Reply />
-                        Responder
-                      </DropdownMenuItem>
-                    </DropdownMenuGroup>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                    <span class="font-semibold">
+                      {{ getSenderName(msg.refer[0]?.senderId) }}:
+                    </span>
+                    {{ msg.refer[0]?.text }}
+                  </div>
+
+                  <p class="mb-1.5 wrap-break-word">{{ msg.text }}</p>
+
+                  <div
+                    :class="[
+                      'text-right text-[9px] inline-flex flex-row-reverse justify-between w-full items-center',
+                      isOwnMessage(msg) ? 'text-muted' : 'text-foreground',
+                    ]"
+                  >
+                    <Component
+                      :is="msg.isRead ? CheckCheck : Check"
+                      :class="[
+                        'h-3 w-3',
+                        msg.isRead
+                          ? 'text-blue-500'
+                          : isOwnMessage(msg)
+                            ? 'text-muted'
+                            : 'text-muted-foreground',
+                      ]"
+                    />
+                    <span>{{ msg.time }}</span>
+                  </div>
+
+                  <DropdownMenu :modal="false">
+                    <DropdownMenuTrigger as-child>
+                      <Button
+                        :size="'10px'"
+                        variant="ghost"
+                        :class="[
+                          'absolute top-0.5 rounded-full ',
+                          isOwnMessage(msg) ? '-left-4.5 ' : '-right-4.5',
+                        ]"
+                      >
+                        <EllipsisVertical class="size-4 text-primary" />
+                      </Button>
+                    </DropdownMenuTrigger>
+
+                    <DropdownMenuContent
+                      :align="isOwnMessage(msg) ? 'end' : 'start'"
+                      :side="isOwnMessage(msg) ? 'left' : 'right'"
+                      :side-offset="0"
+                      :align-offset="isOwnMessage(msg) ? -20 : -2"
+                      class="min-w-10 max-w-30 p-0"
+                    >
+                      <DropdownMenuGroup>
+                        <DropdownMenuItem @select="emit('reply', userId, msg)">
+                          <Reply />
+                          Responder
+                        </DropdownMenuItem>
+                      </DropdownMenuGroup>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
               </div>
             </div>
+            <!-- /End v-for-->
           </div>
-          <!-- /End v-for-->
-        </div>
 
-        <!-- Input individual -->
-        <form
-          @submit.prevent="
-            emit('send', userId, replyingToMessages[userId]?.id);
-            handleDraftUpdate(userId, '');
-          "
-          class="p-2 border-t border-border flex flex-col gap-1.5 bg-card"
-        >
-          <p
-            v-if="typingUsers[userId]?.isTyping"
-            class="px-2 text-[11px] italic text-muted-foreground animate-pulse"
+          <!-- Input individual -->
+          <form
+            @submit.prevent="
+              emit('send', userId, replyingToMessages[userId]?.id);
+              handleDraftUpdate(userId, '');
+            "
+            class="p-2 border-t border-border flex flex-col gap-1.5 bg-card"
           >
-            {{ typingUsers[userId]?.userName || getUser(userId)?.name }} está
-            digitando...
-          </p>
+            <p
+              v-if="typingUsers[userId]?.isTyping"
+              class="px-2 text-[11px] italic text-muted-foreground animate-pulse"
+            >
+              {{ typingUsers[userId]?.userName || getUser(userId)?.name }} está
+              digitando...
+            </p>
 
-          <div
-            v-if="replyingToMessages[userId]"
-            class="flex items-center justify-between gap-2 px-2 py-1.5 bg-muted/60 border-l-2 border-primary rounded-sm text-[11px] text-muted-foreground animate-fade-in"
-          >
-            <div class="flex flex-col truncate flex-1">
-              <span class="font-semibold text-primary text-xs">
-                Respondendo a
-                {{ getSenderName(replyingToMessages[userId]?.senderId) }}
-              </span>
-              <span class="truncate">
-                {{ replyingToMessages[userId]?.text }}
-              </span>
+            <div
+              v-if="replyingToMessages[userId]"
+              class="flex items-center justify-between gap-2 px-2 py-1.5 bg-muted/60 border-l-2 border-primary rounded-sm text-[11px] text-muted-foreground animate-fade-in"
+            >
+              <div class="flex flex-col truncate flex-1">
+                <span class="font-semibold text-primary text-xs">
+                  Respondendo a
+                  {{ getSenderName(replyingToMessages[userId]?.senderId) }}
+                </span>
+                <span class="truncate">
+                  {{ replyingToMessages[userId]?.text }}
+                </span>
+              </div>
+
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                class="h-4 w-4 rounded-full opacity-70 hover:opacity-100 shrink-0"
+                @click="emit('cancelReply', userId)"
+              >
+                <X class="h-3 w-3" />
+              </Button>
             </div>
 
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              class="h-4 w-4 rounded-full opacity-70 hover:opacity-100 shrink-0"
-              @click="emit('cancelReply', userId)"
-            >
-              <X class="h-3 w-3" />
-            </Button>
-          </div>
-
-          <div class="flex items-center gap-1.5 w-full">
-            <Textarea
-              :model-value="draftMessages[userId] ?? ''"
-              @update:model-value="handleDraftUpdate(userId, String($event))"
-              @keydown.enter.exact.prevent="
-                emit('send', userId, replyingToMessages[userId]?.id);
-                handleDraftUpdate(userId, '');
-              "
-              placeholder="Escreva algo..."
-              class="min-h-8 max-h-15 text-xs bg-muted/40 flex-1 resize-none overflow-y-auto"
-            />
-            <Button
-              type="submit"
-              size="icon"
-              class="h-8 w-8 shrink-0"
-            >
-              <Send class="h-3.5 w-3.5" />
-            </Button>
-          </div>
-        </form>
-      </div>
+            <div class="flex items-center gap-1.5 w-full">
+              <Textarea
+                :model-value="draftMessages[userId] ?? ''"
+                @update:model-value="handleDraftUpdate(userId, String($event))"
+                @keydown.enter.exact.prevent="
+                  emit('send', userId, replyingToMessages[userId]?.id);
+                  handleDraftUpdate(userId, '');
+                "
+                placeholder="Escreva algo..."
+                class="min-h-8 max-h-15 text-xs bg-muted/40 flex-1 resize-none overflow-y-auto"
+              />
+              <Button
+                type="submit"
+                size="icon"
+                class="h-8 w-8 shrink-0"
+              >
+                <Send class="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          </form>
+        </div>
+      </Transition>
     </Card>
   </div>
 </template>

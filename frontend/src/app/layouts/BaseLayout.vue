@@ -3,6 +3,7 @@ import { Calendar, Megaphone } from "@lucide/vue";
 import { AppHeader } from "@/widgets/app-header";
 import { AppSidebar } from "@/widgets/app-sidebar";
 import { Card } from "@/shared/ui/card";
+import ChatWidget from "@/widgets/chat-widget/ui/ChatWidget.vue";
 </script>
 
 <template>
@@ -52,9 +53,7 @@ import { Card } from "@/shared/ui/card";
               >
                 Pesquisa de clima organizacional 2026
               </p>
-              <p class="text-muted-foreground">
-                Encerra em 3 dias
-              </p>
+              <p class="text-muted-foreground">Encerra em 3 dias</p>
             </div>
             <div class="pt-2 space-y-1">
               <span
@@ -67,9 +66,7 @@ import { Card } from "@/shared/ui/card";
               >
                 Nova política de senhas fortes
               </p>
-              <p class="text-muted-foreground">
-                Obrigatório para todos
-              </p>
+              <p class="text-muted-foreground">Obrigatório para todos</p>
             </div>
           </div>
         </Card>
@@ -91,5 +88,8 @@ import { Card } from "@/shared/ui/card";
         </Card>
       </aside>
     </div>
+
+    <!-- Chat -->
+    <ChatWidget />
   </div>
 </template>

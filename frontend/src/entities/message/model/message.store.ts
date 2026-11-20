@@ -276,6 +276,13 @@ export const useMessageStore = defineStore("messages", () => {
     }
   }
 
+  function clearConversation(userId: number) {
+    delete conversations.value[userId];
+    delete messagesNextCursor.value[userId];
+    delete loadingConversations.value[userId];
+    delete loadingMoreMessages.value[userId];
+  }
+
   return {
     conversationsList,
     onlineUsers,
@@ -303,5 +310,6 @@ export const useMessageStore = defineStore("messages", () => {
     clearOnlineUsers,
     markAsRead,
     setMessageAsReadByChatId,
+    clearConversation,
   };
 });
