@@ -14,12 +14,20 @@ class ChatUserResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
+        $isGroup = (bool) ($this->is_group ?? false);
+
         return [
-            'id'            => $this->id,
+            'key'           => $this->row_key ?? ($isGroup ? "group-{$this->id}" : "user-{$this->id}"),
+            'id'            => (int) $this->id,
+            'chatId'        => $this->chat_id ? (int) $this->chat_id : null,
+            'isGroup'       => $isGroup,
             'name'          => $this->name,
             'email'         => $this->email,
             'avatar'        => $this->avatar,
-            'department'    => $this->department?->slug,
+            'department'    => $isGroup  
+                ? "{$this->members_count} membros"
+                : ($this->department?->slug ?? $this->department ?? null),
+            'memberCount'   => $isGroup ? (int) ($this->members_count ?? 0) : null,
         ];
     }
 }

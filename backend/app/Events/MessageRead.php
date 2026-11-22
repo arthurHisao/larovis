@@ -29,7 +29,7 @@ class MessageRead implements ShouldBroadcastNow
         return [new PrivateChannel("chat.{$this->chatId}")];
     }
 
-    public function broadCastAs(): string
+    public function broadcastAs(): string
     {
         return 'messages.read';
     }

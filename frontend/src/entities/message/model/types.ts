@@ -1,10 +1,14 @@
 export interface ChatUser {
   id: number;
+  key?: string; // "user-5" ou "group-12"
+  chatId?: number | null;
+  isGroup?: boolean;
   name: string;
-  email?: string;
-  role?: string;
+  email?: string | null;
   avatar?: string | null;
   department?: string | null;
+  role?: string | null;
+  membersCount?: number | null;
   isOnline?: boolean;
 }
 
@@ -40,4 +44,16 @@ export interface CursorPaginatedResponse<T> {
   data: T[];
   links?: CursorPaginationLinks;
   meta?: CursorPaginationMeta;
+}
+
+export interface CreateGroupPayload {
+  name: string;
+  memberIds: number[];
+}
+
+export interface SendMessagePayload {
+  receiverId?: number;
+  chatId?: number;
+  text: string;
+  parentId?: number;
 }

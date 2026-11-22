@@ -1,47 +1,52 @@
 import { defineStore } from "pinia";
 import { ref, computed } from "vue";
 import { messageApi } from "../api/message.api";
-import type { ChatMessage, ChatUser } from "./types";
+import type { ChatMessage, ChatUser, CreateGroupPayload } from "./types";
 
 export const useMessageStore = defineStore("messages", () => {
-  // 1. Histórico de conversas (usuários com quem já conversou - via HTTP/Banco)
+  // 1. Histórico de conversas (usuários e grupos - via HTTP/Banco)
   const conversationsList = ref<ChatUser[]>([]);
 
   // 2. Usuários ativos em tempo real (vindos do WebSocket Presence Channel)
   const onlineUsers = ref<ChatUser[]>([]);
   const knownOnlineUsers = ref<ChatUser[]>([]);
 
-  // 3. Paginação por cursor e busca
+  // 3. Paginação por cursor e busca da lista principal
   const nextCursor = ref<string | null>(null);
   const isLoadingMoreConversations = ref(false);
   const currentSearch = ref("");
 
   const hasMoreConversations = computed(() => !!nextCursor.value);
 
+  // Estado das conversas 1-a-1 (indexado por userId)
   const conversations = ref<Record<number, ChatMessage[]>>({});
   const messagesNextCursor = ref<Record<number, string | null>>({});
   const loadingMoreMessages = ref<Record<number, boolean>>({});
   const chatIdsByUser = ref<Record<number, number>>({});
   const isLoadingConversations = ref(false);
   const loadingConversations = ref<Record<number, boolean>>({});
+
+  // Estado das conversas em grupo (indexado por chatId do grupo)
+  const groupMessages = ref<Record<number, ChatMessage[]>>({});
+  const groupMessagesNextCursor = ref<Record<number, string | null>>({});
+  const loadingGroupMessages = ref<Record<number, boolean>>({});
+  const loadingMoreGroupMessages = ref<Record<number, boolean>>({});
+
   let conversationListRequestId = 0;
 
-  /**
-   * Getter unificado: Faz o merge do histórico com o status online em tempo real.
-   * Adiciona a propriedade `isOnline: true/false` a cada utilizador.
-   */
   const unifiedContacts = computed(() => {
     const onlineUserIds = new Set(onlineUsers.value.map((user) => user.id));
     const conversationIds = new Set(
-      conversationsList.value.map((user) => user.id),
+      conversationsList.value
+        .filter((item) => !item.isGroup)
+        .map((user) => user.id),
     );
 
-    const conversationContacts = conversationsList.value.map((user) => ({
-      ...user,
-      isOnline: onlineUserIds.has(user.id),
+    const conversationContacts = conversationsList.value.map((item) => ({
+      ...item,
+      isOnline: item.isGroup ? false : onlineUserIds.has(item.id),
     }));
 
-    // Se houver busca ativa, filtra também os usuários online não presentes no histórico
     const onlineCandidates = currentSearch.value
       ? onlineUsers.value.filter((user) =>
           user.name.toLowerCase().includes(currentSearch.value.toLowerCase()),
@@ -58,7 +63,6 @@ export const useMessageStore = defineStore("messages", () => {
     return [...conversationContacts, ...onlineContacts];
   });
 
-  // Busca a primeira página de conversas ou reseta após termo de busca
   async function fetchConversationsList(search = "") {
     const requestId = ++conversationListRequestId;
     const cleanSearch = search.trim();
@@ -81,7 +85,6 @@ export const useMessageStore = defineStore("messages", () => {
     }
   }
 
-  // Carrega a próxima página baseada no cursor retornado pelo Laravel (Infinite Scroll)
   async function loadMoreConversations() {
     if (
       !nextCursor.value ||
@@ -101,9 +104,16 @@ export const useMessageStore = defineStore("messages", () => {
       });
 
       if (currentReqId === conversationListRequestId) {
-        const existingIds = new Set(conversationsList.value.map((u) => u.id));
-        const newUsers = response.data.filter((u) => !existingIds.has(u.id));
-        conversationsList.value.push(...newUsers);
+        const existingKeys = new Set(
+          conversationsList.value.map(
+            (u) => u.key ?? (u.isGroup ? `group-${u.id}` : `user-${u.id}`),
+          ),
+        );
+        const newItems = response.data.filter((u) => {
+          const key = u.key ?? (u.isGroup ? `group-${u.id}` : `user-${u.id}`);
+          return !existingKeys.has(key);
+        });
+        conversationsList.value.push(...newItems);
         nextCursor.value = response.meta?.next_cursor ?? null;
       }
     } catch (error) {
@@ -115,6 +125,8 @@ export const useMessageStore = defineStore("messages", () => {
     }
   }
 
+  // --- Conversas 1-a-1 (mantidas como você já tinha) ---
+
   async function fetchConversationMessages(userId: number) {
     if (loadingConversations.value[userId]) return;
 
@@ -123,10 +135,7 @@ export const useMessageStore = defineStore("messages", () => {
 
     try {
       const response = await messageApi.getConversation(userId);
-      // Como o backend retorna em ordem desc (mais recentes primeiro),
-      // invertemos para ficar em ordem cronológica (mais antigas no topo, recentes abaixo)
-      const chronologicallyOrdered = [...response.data].reverse();
-      conversations.value[userId] = chronologicallyOrdered;
+      conversations.value[userId] = [...response.data].reverse();
       messagesNextCursor.value[userId] = response.meta?.next_cursor ?? null;
     } finally {
       loadingConversations.value[userId] = false;
@@ -156,7 +165,6 @@ export const useMessageStore = defineStore("messages", () => {
       const existingIds = new Set(conversations.value[userId].map((m) => m.id));
       const uniqueOlder = olderMessages.filter((m) => !existingIds.has(m.id));
 
-      // Prepend das mensagens mais antigas no início
       conversations.value[userId] = [
         ...uniqueOlder,
         ...conversations.value[userId],
@@ -183,14 +191,8 @@ export const useMessageStore = defineStore("messages", () => {
     parentId?: number,
   ) {
     const response = await messageApi.sendMessage(receiverId, text, parentId);
-
-    const newMessage = {
-      refer: [],
-      ...response,
-    };
-
+    const newMessage = { refer: [], ...response };
     addIncomingMessage(receiverId, newMessage);
-
     return newMessage;
   }
 
@@ -204,11 +206,12 @@ export const useMessageStore = defineStore("messages", () => {
       text: message.text,
       time:
         message.time ??
-        new Date().toLocaleDateString([], {
+        new Date().toLocaleTimeString([], {
           hour: "2-digit",
           minute: "2-digit",
         }),
       refer: message.refer ?? [],
+      isRead: message.isRead ?? false,
     };
 
     if (!conversations.value[conversationUserId]) {
@@ -223,6 +226,135 @@ export const useMessageStore = defineStore("messages", () => {
     }
   }
 
+  // --- Grupos ---
+
+  async function createGroup(payload: CreateGroupPayload) {
+    const created = await messageApi.createGroup(payload);
+    const groupItem: ChatUser = {
+      id: created.id,
+      key: created.key ?? `group-${created.id}`,
+      chatId: created.chatId ?? created.chat_id ?? created.id,
+      isGroup: true,
+      name: created.name,
+      avatar: created.avatar ?? null,
+      department: created.department ?? "Grupo",
+      isOnline: false,
+    };
+
+    conversationsList.value = [
+      groupItem,
+      ...conversationsList.value.filter(
+        (item) => !(item.isGroup && item.id === groupItem.id),
+      ),
+    ];
+
+    return groupItem;
+  }
+
+  async function fetchGroupMessages(chatId: number) {
+    if (loadingGroupMessages.value[chatId]) return;
+
+    loadingGroupMessages.value[chatId] = true;
+    groupMessagesNextCursor.value[chatId] = null;
+
+    try {
+      const response = await messageApi.getGroupMessages(chatId);
+      groupMessages.value[chatId] = [...response.data].reverse();
+      groupMessagesNextCursor.value[chatId] =
+        response.meta?.next_cursor ?? null;
+    } finally {
+      loadingGroupMessages.value[chatId] = false;
+    }
+  }
+
+  async function loadMoreGroupMessages(chatId: number): Promise<boolean> {
+    const cursor = groupMessagesNextCursor.value[chatId];
+    if (
+      !cursor ||
+      loadingGroupMessages.value[chatId] ||
+      loadingMoreGroupMessages.value[chatId]
+    ) {
+      return false;
+    }
+
+    loadingMoreGroupMessages.value[chatId] = true;
+
+    try {
+      const response = await messageApi.getGroupMessages(chatId, { cursor });
+      const olderMessages = [...response.data].reverse();
+
+      if (!groupMessages.value[chatId]) {
+        groupMessages.value[chatId] = [];
+      }
+
+      const existingIds = new Set(groupMessages.value[chatId].map((m) => m.id));
+      const uniqueOlder = olderMessages.filter((m) => !existingIds.has(m.id));
+
+      groupMessages.value[chatId] = [
+        ...uniqueOlder,
+        ...groupMessages.value[chatId],
+      ];
+      groupMessagesNextCursor.value[chatId] =
+        response.meta?.next_cursor ?? null;
+      return uniqueOlder.length > 0;
+    } catch (error) {
+      console.error(
+        `Erro ao carregar mais mensagens do grupo ${chatId}:`,
+        error,
+      );
+      return false;
+    } finally {
+      loadingMoreGroupMessages.value[chatId] = false;
+    }
+  }
+
+  async function sendGroupMessage(
+    chatId: number,
+    text: string,
+    parentId?: number,
+  ) {
+    const response = await messageApi.sendGroupMessage(chatId, text, parentId);
+    const newMessage = { refer: [], ...response };
+    addIncomingGroupMessage(chatId, newMessage);
+    return newMessage;
+  }
+
+  function addIncomingGroupMessage(chatId: number, message: ChatMessage) {
+    const normalizedMsg: ChatMessage = {
+      id: message.id,
+      senderId: message.senderId,
+      text: message.text,
+      time:
+        message.time ??
+        new Date().toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+      refer: message.refer ?? [],
+      isRead: false,
+    };
+
+    if (!groupMessages.value[chatId]) {
+      groupMessages.value[chatId] = [];
+    }
+
+    const exists = groupMessages.value[chatId].some(
+      (m) => m.id === normalizedMsg.id,
+    );
+    if (!exists) {
+      groupMessages.value[chatId].push(normalizedMsg);
+    }
+  }
+
+  function clearGroupConversation(chatId: number) {
+    delete groupMessages.value[chatId];
+    delete groupMessagesNextCursor.value[chatId];
+    delete loadingGroupMessages.value[chatId];
+    delete loadingMoreGroupMessages.value[chatId];
+  }
+
+  // --- Presença e Leitura ---
+
   function setOnlineUsers(users: ChatUser[]) {
     users.forEach(rememberOnlineUser);
     onlineUsers.value = users;
@@ -236,7 +368,6 @@ export const useMessageStore = defineStore("messages", () => {
 
   function addOnlineUser(user: ChatUser) {
     rememberOnlineUser(user);
-
     if (!onlineUsers.value.some((u) => u.id === user.id)) {
       onlineUsers.value.push(user);
     }
@@ -261,7 +392,6 @@ export const useMessageStore = defineStore("messages", () => {
   }
 
   function setMessageAsReadByChatId(chatId: number) {
-    // 1. Descobre qual é o userId com base no chatId guardado no store
     const userId = Object.keys(chatIdsByUser.value).find(
       (key) => chatIdsByUser.value[Number(key)] === chatId,
     );
@@ -296,7 +426,11 @@ export const useMessageStore = defineStore("messages", () => {
     loadingConversations,
     nextCursor,
     hasMoreConversations,
-    unifiedContacts, // <- Usar este computed no componente de listagem
+    unifiedContacts,
+    groupMessages,
+    groupMessagesNextCursor,
+    loadingGroupMessages,
+    loadingMoreGroupMessages,
     fetchConversationsList,
     loadMoreConversations,
     fetchConversationMessages,
@@ -304,6 +438,12 @@ export const useMessageStore = defineStore("messages", () => {
     ensureConversationRoom,
     sendMessage,
     addIncomingMessage,
+    createGroup,
+    fetchGroupMessages,
+    loadMoreGroupMessages,
+    sendGroupMessage,
+    addIncomingGroupMessage,
+    clearGroupConversation,
     setOnlineUsers,
     addOnlineUser,
     removeOnlineUser,

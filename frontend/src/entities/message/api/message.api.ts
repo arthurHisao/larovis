@@ -2,6 +2,8 @@ import { api } from "@/shared/api/axios";
 import type {
   ChatMessage,
   ChatUser,
+  CreatedGroupChat,
+  CreateGroupPayload,
   CursorPaginatedResponse,
 } from "../model/types";
 
@@ -32,6 +34,24 @@ export interface GetConversationMessagesParams {
 }
 
 export const messageApi = {
+  async createGroup(payload: CreateGroupPayload): Promise<CreatedGroupChat> {
+    const response = await api.post("/chats/groups", {
+      name: payload.name,
+      member_ids: payload.memberIds,
+    });
+
+    const raw = (response.data as any)?.data ?? response.data;
+    return {
+      ...raw,
+      key: raw.key ?? `group-${raw.id}`,
+      chatId: raw.chatId ?? raw.chat_id ?? raw.id,
+      isGroup: true,
+      department:
+        raw.department ??
+        (raw.members_count ? `${raw.members_count} membros` : "Grupo"),
+    };
+  },
+
   async ensureConversationRoom(userId: number): Promise<number> {
     const response = await api.post<{ chat_id: number }>(
       `/messages/${userId}/room`,
@@ -98,6 +118,36 @@ export const messageApi = {
     };
   },
 
+  async getGroupMessages(
+    chatId: number,
+    params?: GetConversationMessagesParams,
+  ): Promise<CursorPaginatedResponse<ChatMessage>> {
+    const response = await api.get(`/chats/${chatId}/messages`, {
+      params: {
+        ...(params?.cursor ? { cursor: params.cursor } : {}),
+        ...(params?.per_page ? { per_page: params.per_page } : {}),
+      },
+    });
+
+    const raw = response.data;
+    const items: ChatMessage[] = Array.isArray(raw)
+      ? raw
+      : Array.isArray(raw?.data)
+        ? raw.data
+        : [];
+
+    const nextCursor = extractNextCursor(raw);
+
+    return {
+      data: items,
+      links: raw?.links,
+      meta: {
+        ...raw?.meta,
+        next_cursor: nextCursor,
+      },
+    };
+  },
+
   async sendMessage(
     receiverId: number,
     text: string,
@@ -109,6 +159,19 @@ export const messageApi = {
       parent_id: parentId,
     });
     return (response.data as any)?.data ?? response.data;
+  },
+
+  async sendGroupMessage(
+    chatId: number,
+    text: string,
+    parentId?: number,
+  ): Promise<ChatMessage> {
+    const { data } = await api.post(`/chats/${chatId}/messages`, {
+      text,
+      ...(parentId ? { parent_id: parentId } : {}),
+    });
+
+    return data.data ?? data;
   },
 
   async markAsRead(chatId: number): Promise<void> {

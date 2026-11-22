@@ -46,6 +46,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/messages/{user}/room', [MessageController::class, 'ensureRoom']);
     Route::get('/messages/{user}', [MessageController::class, 'show']);
     Route::post('/messages', [MessageController::class, 'store']);
+
+    // Grupos & Salas
+    Route::get('/chats/{chat}/messages', [MessageController::class, 'showGroup']);
+    Route::post('/chats/groups', [MessageController::class, 'storeGroup']);
+    Route::post('/chats/{chat}/messages', [MessageController::class, 'sendGroupMessage']);
     Route::post('/chats/{chat}/read', [MessageController::class, 'markAsRead']);
 
     // Logout

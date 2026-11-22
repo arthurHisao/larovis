@@ -11,17 +11,20 @@ import type {
 } from "@/entities/message/model/types";
 import ChatOnlineUsers from "./ChatOnlineUsers.vue";
 import ChatMessage from "./ChatMessage.vue";
+import ChatCreateGroup from "./ChatCreateGroup.vue";
 import { playBellSound } from "@/shared/lib/play-bell-sound.ts";
 
-// Controlo do Widget Principal (Lista de Contatos)
 const isListOpen = ref(false);
+const isCreateGroupOpen = ref(false);
+const isCreatingGroup = ref(false);
 
-// Controlo das Janelas/Abas de Chat Abertas (Guarda os IDs dos Utilizadores)
 const activeChatUserIds = ref<number[]>([]);
-// Controlo das Janelas de Chat Minimizadas/Ocultas
 const collapsedChatUserIds = ref<number[]>([]);
 
-// Mensagens digitadas por utilizador { userId: "texto..." }
+// Janelas de grupo separadas pelo chatId do grupo
+const activeGroupIds = ref<number[]>([]);
+const collapsedGroupIds = ref<number[]>([]);
+
 const draftMessages = ref<Record<number, string>>({});
 const replyingToMessages = ref<Record<number, ChatMessageType | undefined>>({});
 
@@ -54,7 +57,21 @@ const loadMoreConversations = async () => {
 
 onMounted(loadConversations);
 
-// Alterna estado minimizado/expandido de uma janela
+const handleCreateGroup = async (payload: {
+  name: string;
+  memberIds: number[];
+}) => {
+  isCreatingGroup.value = true;
+  try {
+    await messageStore.createGroup(payload);
+    isCreateGroupOpen.value = false;
+  } catch (error) {
+    console.error("Erro ao criar grupo:", error);
+  } finally {
+    isCreatingGroup.value = false;
+  }
+};
+
 const toggleChatCollapse = (userId: number) => {
   const index = collapsedChatUserIds.value.indexOf(userId);
   if (index === -1) {
@@ -64,12 +81,50 @@ const toggleChatCollapse = (userId: number) => {
   }
 };
 
-// Abre a aba do chat se ainda não estiver aberta
+const toggleGroupCollapse = (groupId: number) => {
+  const index = collapsedGroupIds.value.indexOf(groupId);
+  if (index === -1) {
+    collapsedGroupIds.value.push(groupId);
+  } else {
+    collapsedGroupIds.value.splice(index, 1);
+  }
+};
+
 const openChatWith = async (user: ChatUser) => {
+  if (user.isGroup) {
+    const groupId = user.chatId ?? user.id;
+    conversationErrors.value[groupId] = "";
+
+    if (!activeGroupIds.value.includes(groupId)) {
+      if (activeGroupIds.value.length >= 3) {
+        const closedGroupId = activeGroupIds.value.shift();
+        if (closedGroupId !== undefined) {
+          delete replyingToMessages.value[closedGroupId];
+          collapsedGroupIds.value = collapsedGroupIds.value.filter(
+            (id) => id !== closedGroupId,
+          );
+        }
+      }
+      activeGroupIds.value.push(groupId);
+    }
+
+    collapsedGroupIds.value = collapsedGroupIds.value.filter(
+      (id) => id !== groupId,
+    );
+
+    try {
+      await messageStore.fetchGroupMessages(groupId);
+    } catch (error) {
+      console.error(`Erro ao abrir grupo ${user.name}:`, error);
+      conversationErrors.value[groupId] = "Não foi possível abrir o grupo.";
+    }
+    return;
+  }
+
+  // Fluxo privado (1-a-1)
   conversationErrors.value[user.id] = "";
 
   if (!activeChatUserIds.value.includes(user.id)) {
-    // Limite máximo de 3 chats abertos lado a lado para não quebrar a tela
     if (activeChatUserIds.value.length >= 3) {
       const closedUserId = activeChatUserIds.value.shift();
       if (closedUserId !== undefined) {
@@ -82,7 +137,6 @@ const openChatWith = async (user: ChatUser) => {
     activeChatUserIds.value.push(user.id);
   }
 
-  // Se a janela estava minimizada/oculta, expande-a automaticamente ao clicar no contato
   collapsedChatUserIds.value = collapsedChatUserIds.value.filter(
     (id) => id !== user.id,
   );
@@ -107,18 +161,40 @@ const closeChat = (userId: number) => {
   messageStore.clearConversation(userId);
 };
 
+const closeGroupChat = (groupId: number) => {
+  activeGroupIds.value = activeGroupIds.value.filter((id) => id !== groupId);
+  collapsedGroupIds.value = collapsedGroupIds.value.filter(
+    (id) => id !== groupId,
+  );
+  delete replyingToMessages.value[groupId];
+  messageStore.clearGroupConversation(groupId);
+};
+
 const sendMessage = async (userId: number, parentId?: number) => {
   const text = draftMessages.value[userId]?.trim();
   if (!text) return;
 
   try {
-    // Envia via store (que chama a API POST /messages)
     await messageStore.sendMessage(userId, text, parentId);
     draftMessages.value[userId] = "";
     delete replyingToMessages.value[userId];
     playBellSound();
   } catch (error) {
     console.error("Erro ao enviar mensagem:", error);
+  }
+};
+
+const sendGroupMessage = async (groupId: number, parentId?: number) => {
+  const text = draftMessages.value[groupId]?.trim();
+  if (!text) return;
+
+  try {
+    await messageStore.sendGroupMessage(groupId, text, parentId);
+    draftMessages.value[groupId] = "";
+    delete replyingToMessages.value[groupId];
+    playBellSound();
+  } catch (error) {
+    console.error("Erro ao enviar mensagem no grupo:", error);
   }
 };
 
@@ -136,11 +212,9 @@ const updateDraft = (userId: number, text: string) => {
 </script>
 
 <template>
-  <!-- Container Flutuante na Direita (Alinha as janelas lado a lado com flex-row-reverse) -->
   <div
     class="fixed bottom-0 right-6 z-40 flex flex-row-reverse items-end gap-3"
   >
-    <!-- 1. WIDGET PRINCIPAL: LISTA DE CONTATOS -->
     <div class="w-72 shadow-lg transition-all duration-300">
       <Card
         class="border-border bg-card overflow-hidden rounded-b-none border-b-0 py-0 gap-0"
@@ -171,7 +245,6 @@ const updateDraft = (userId: number, text: string) => {
           </div>
         </Button>
 
-        <!-- 1. Lista de utilizadores online e conversas ativas -->
         <Transition
           enter-active-class="transition-all duration-300 ease-out overflow-hidden"
           enter-from-class="max-h-0 opacity-0"
@@ -187,25 +260,37 @@ const updateDraft = (userId: number, text: string) => {
               @open-chat="openChatWith"
               @search="loadConversations"
               @load-more="loadMoreConversations"
+              @create-group="isCreateGroupOpen = true"
             />
           </div>
         </Transition>
       </Card>
     </div>
 
-    <!-- 2. JANELAS DE CHAT ABERTAS (LADO A LADO) -->
     <ChatMessage
       :active-chat-user-ids="activeChatUserIds"
       :collapsed-chat-user-ids="collapsedChatUserIds"
+      :active-group-ids="activeGroupIds"
+      :collapsed-group-ids="collapsedGroupIds"
       :conversation-errors="conversationErrors"
       :draft-messages="draftMessages"
       :replying-to-messages="replyingToMessages"
       @close="closeChat"
       @send="sendMessage"
+      @close-group="closeGroupChat"
+      @send-group="sendGroupMessage"
+      @toggle-group-collapse="toggleGroupCollapse"
       @reply="startReply"
       @cancel-reply="cancelReply"
       @update-draft="updateDraft"
       @toggle-collapse="toggleChatCollapse"
+    />
+
+    <ChatCreateGroup
+      :open="isCreateGroupOpen"
+      :is-submitting="isCreatingGroup"
+      @close="isCreateGroupOpen = false"
+      @created="handleCreateGroup"
     />
   </div>
 </template>

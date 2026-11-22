@@ -38,6 +38,7 @@ export function subscribeToChatRoom(
   currentUserId: number,
   conversationUserId: number,
   onTyping: (user: { id: number; name?: string }, isTyping: boolean) => void,
+  isGroup = false,
 ) {
   const messageStore = useMessageStore();
   const channelName = `chat.${chatId}`;
@@ -51,7 +52,11 @@ export function subscribeToChatRoom(
   channel.listen(".message.sent", (event: { message: ChatMessage }) => {
     if (event.message.senderId === currentUserId) return;
 
-    messageStore.addIncomingMessage(conversationUserId, event.message);
+    if (isGroup) {
+      messageStore.addIncomingGroupMessage(chatId, event.message);
+    } else {
+      messageStore.addIncomingGroupMessage(conversationUserId, event.message);
+    }
 
     messageStore.markAsRead(chatId);
   });
@@ -60,7 +65,9 @@ export function subscribeToChatRoom(
   channel.listen(".messages.read", (event: { userId: number }) => {
     if (event.userId === currentUserId) return;
 
-    messageStore.setMessageAsReadByChatId(chatId);
+    if (!isGroup) {
+      messageStore.setMessageAsReadByChatId(chatId);
+    }
   });
 
   // Escuta o sinal de "a digitar..." (Whisper)
