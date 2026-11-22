@@ -32,6 +32,9 @@ export const useMessageStore = defineStore("messages", () => {
   const loadingGroupMessages = ref<Record<number, boolean>>({});
   const loadingMoreGroupMessages = ref<Record<number, boolean>>({});
 
+  const groupMembers = ref<Record<number, ChatUser[]>>({});
+  const loadingGroupMembers = ref<Record<number, boolean>>({});
+
   let conversationListRequestId = 0;
 
   const unifiedContacts = computed(() => {
@@ -382,6 +385,15 @@ export const useMessageStore = defineStore("messages", () => {
     knownOnlineUsers.value = [];
   }
 
+  async function fetchGroupMembers(chatId: number) {
+    loadingGroupMembers.value[chatId] = true;
+    try {
+      groupMembers.value[chatId] = await messageApi.getGroupMembers(chatId);
+    } finally {
+      loadingGroupMembers.value[chatId] = false;
+    }
+  }
+
   async function markAsRead(chatId: number) {
     try {
       await messageApi.markAsRead(chatId);
@@ -451,5 +463,8 @@ export const useMessageStore = defineStore("messages", () => {
     markAsRead,
     setMessageAsReadByChatId,
     clearConversation,
+    fetchGroupMembers,
+    groupMembers,
+    loadingGroupMembers,
   };
 });

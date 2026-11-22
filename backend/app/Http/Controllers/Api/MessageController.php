@@ -309,4 +309,32 @@ class MessageController extends Controller
 
         return (new MessageResource($message))->response()->setStatusCode(201);
     }
+
+    public function groupMembers(Request $request, Chat $chat) 
+    {
+        abort_unless($chat->is_group, 404, 'Esta conversa não é um grupo');
+
+        $authUserId = $request->user()->id;
+
+        $isMember = $chat->users()
+            ->where('users.id', $authUserId)
+            ->exists();
+        
+        abort_unless($isMember, 403, 'Você não participa deste grupo.');
+
+        $members = $chat->users()
+            ->select('users.id', 'users.name', 'users.email', 'users.avatar')
+            ->orderBy('users.name')
+            ->get()
+            ->map(fn ($user) => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'avatar' => $user->avatar,
+            ]);
+
+        return response()->json([
+            'data'  => $members,
+        ]);
+    }
 }

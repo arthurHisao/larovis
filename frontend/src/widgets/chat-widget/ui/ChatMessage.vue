@@ -107,6 +107,17 @@ const handleToggleGroupCollapse = (groupId: number) => {
   }
 };
 
+// --- Painel de membros do grupo ---
+const showMembersPanel = ref<Record<number, boolean>>({});
+
+const toggleMembersPanel = (groupId: number) => {
+  const isOpening = !showMembersPanel.value[groupId];
+  showMembersPanel.value[groupId] = isOpening;
+  if (isOpening && !messageStore.groupMembers?.[groupId]?.length) {
+    messageStore.fetchGroupMembers(groupId);
+  }
+};
+
 const typingUsers = ref<
   Record<string, { isTyping: boolean; userName?: string }>
 >({});
@@ -472,6 +483,16 @@ const handleDraftUpdate = (
             variant="ghost"
             size="icon"
             class="h-6 w-6 text-muted-foreground hover:text-foreground cursor-pointer"
+            :title="showMembersPanel[groupId] ? 'Fechar membros' : 'Ver membros'"
+            @click.stop="toggleMembersPanel(groupId)"
+          >
+            <Users class="h-3.5 w-3.5" />
+          </Button>
+
+          <Button
+            variant="ghost"
+            size="icon"
+            class="h-6 w-6 text-muted-foreground hover:text-foreground cursor-pointer"
             :title="
               isGroupCollapsed(groupId)
                 ? 'Expandir conversa'
@@ -511,7 +532,7 @@ const handleDraftUpdate = (
       >
         <div
           v-show="!isGroupCollapsed(groupId)"
-          class="h-96 flex flex-col justify-between"
+          class="h-96 flex flex-col justify-between relative"
         >
           <div
             :ref="(el) => setChatContainer(roomKey('group', groupId), el)"
@@ -654,6 +675,75 @@ const handleDraftUpdate = (
               </div>
             </div>
           </div>
+
+          <!-- Painel deslizante de membros do grupo -->
+          <Transition
+            enter-active-class="transition-all duration-300 ease-out overflow-hidden"
+            enter-from-class="max-h-0 opacity-0"
+            enter-to-class="max-h-96 opacity-100"
+            leave-active-class="transition-all duration-300 ease-in overflow-hidden"
+            leave-from-class="max-h-96 opacity-100"
+            leave-to-class="max-h-0 opacity-0"
+          >
+            <div
+              v-show="showMembersPanel[groupId]"
+              class="absolute inset-0 z-10 bg-card flex flex-col"
+            >
+              <div class="flex items-center justify-between px-3 py-2 border-b border-border">
+                <span class="text-xs font-semibold text-foreground">Membros do grupo</span>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  class="h-6 w-6 text-muted-foreground hover:text-foreground"
+                  @click="showMembersPanel[groupId] = false"
+                >
+                  <X class="h-3.5 w-3.5" />
+                </Button>
+              </div>
+
+              <div class="flex-1 overflow-y-auto py-2">
+                <div
+                  v-if="messageStore.loadingGroupMembers?.[groupId]"
+                  class="flex items-center justify-center gap-1.5 py-6 text-xs text-muted-foreground"
+                >
+                  <LoaderCircle class="h-4 w-4 animate-spin text-primary" />
+                  <span>Carregando membros...</span>
+                </div>
+
+                <div
+                  v-else-if="!messageStore.groupMembers?.[groupId]?.length"
+                  class="py-6 text-center text-xs text-muted-foreground"
+                >
+                  Nenhum membro encontrado.
+                </div>
+
+                <div
+                  v-for="member in messageStore.groupMembers?.[groupId]"
+                  :key="member.id"
+                  class="flex items-center gap-2.5 px-3 py-1.5 hover:bg-muted/40 transition-colors"
+                >
+                  <Avatar class="h-7 w-7 shrink-0">
+                    <AvatarImage :src="member.avatar ?? ''" :alt="member.name" />
+                    <AvatarFallback class="text-[10px]">
+                      {{ member.name?.substring(0, 2).toUpperCase() ?? '?' }}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div class="flex flex-col min-w-0">
+                    <span class="text-xs font-medium text-foreground truncate">
+                      {{ member.name }}
+                      <span
+                        v-if="member.id === authStore.user?.id"
+                        class="text-[10px] text-muted-foreground font-normal ml-1"
+                      >(você)</span>
+                    </span>
+                    <span class="text-[10px] text-muted-foreground truncate">
+                      {{ member.email }}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </Transition>
 
           <form
             @submit.prevent="

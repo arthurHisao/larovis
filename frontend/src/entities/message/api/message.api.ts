@@ -174,6 +174,11 @@ export const messageApi = {
     return data.data ?? data;
   },
 
+  async getGroupMembers(chatId: number): Promise<ChatUser[]> {
+    const response = await api.get(`/chats/${chatId}/members`);
+    return response.data?.data ?? response.data ?? [];
+  },
+
   async markAsRead(chatId: number): Promise<void> {
     await api.post(`/chats/${chatId}/read`);
   },

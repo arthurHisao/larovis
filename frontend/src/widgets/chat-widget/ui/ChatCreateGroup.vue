@@ -44,6 +44,7 @@ watch(
 const availableUsers = computed(() => {
   const query = memberSearch.value.trim().toLowerCase();
   return messageStore.unifiedContacts
+    .filter((user) => !user.isGroup)
     .filter((user) => user.id !== authStore.user?.id)
     .filter((user) => (query ? user.name.toLowerCase().includes(query) : true));
 });
