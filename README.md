@@ -6,8 +6,6 @@
 
 Rede social corporativa / intranet para comunicação interna, publicação de conteúdos por departamento e troca de mensagens em tempo real.
 
-![Preview do Larovis](./caminho-da-sua-imagem.png)
-
 ## 🚀 Tecnologias
 
 ### Frontend
