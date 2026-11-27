@@ -10,6 +10,10 @@ export interface ChatUser {
   role?: string | null;
   membersCount?: number | null;
   isOnline?: boolean;
+  coverImage?: string | null;
+  creatorId?: number | null;
+  isAdmin?: boolean;
+  isCreator?: boolean;
 }
 
 export interface ChatMessageReference {
@@ -49,6 +53,14 @@ export interface CursorPaginatedResponse<T> {
 export interface CreateGroupPayload {
   name: string;
   memberIds: number[];
+}
+
+export interface UpdateGroupPayload {
+  id: number;
+  name: string;
+  memberIds: number[];
+  coverImageFile?: File | null;
+  removeCoverImage?: boolean;
 }
 
 export interface SendMessagePayload {

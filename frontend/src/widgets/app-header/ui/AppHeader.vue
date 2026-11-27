@@ -40,12 +40,6 @@ const handleLogout = async () => {
           to="/"
           class="flex items-center gap-2 font-semibold text-lg tracking-tight hover:opacity-90 transition-opacity"
         >
-          <!-- <div
-                        class="flex h-8 w-8 items-center justify-center rounded-md bg-primary text-primary-foreground font-bold">
-                        <span>L</span>
-                        <Heart class="size-3 fill-current text-primary-foreground" />
-                    </div>
-                    <span class="text-primary">Larovis</span> -->
           <div
             class="flex items-center justify-center text-primary-foreground font-bold"
           >
@@ -58,8 +52,8 @@ const handleLogout = async () => {
           </div>
         </RouterLink>
 
-        <!-- Campo de Busca Rápida (Opcional para Intranet) -->
-        <div class="relative hidden sm:block w-64">
+        <!-- Campo de Busca Rápida (Opcional para Intranet) @todo features futuras quando o mercado de dev melhorar-->
+        <!-- <div class="relative hidden sm:block w-64">
           <Search
             class="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground"
           />
@@ -68,46 +62,13 @@ const handleLogout = async () => {
             placeholder="Buscar posts, pessoas..."
             class="pl-9 h-9 bg-muted/50 text-sm focus-visible:bg-background/40"
           />
-        </div>
+        </div> -->
       </div>
-
-      <!-- Navegação Principal -->
-      <!-- <nav class="flex items-center gap-6 text-sm font-medium">
-        <ul class="flex items-center gap-1 sm:gap-2">
-          <li>
-            <Button
-              variant="ghost"
-              as-child
-              class="text-muted-foreground hover:text-foreground"
-            >
-              <RouterLink to="/">Feed Principal</RouterLink>
-            </Button>
-          </li>
-          <li>
-            <Button
-              variant="ghost"
-              as-child
-              class="text-muted-foreground hover:text-foreground"
-            >
-              <RouterLink to="/departamentos">Departamentos</RouterLink>
-            </Button>
-          </li>
-          <li>
-            <Button
-              variant="ghost"
-              as-child
-              class="text-muted-foreground hover:text-foreground"
-            >
-              <RouterLink to="/comunicados">Comunicados</RouterLink>
-            </Button>
-          </li>
-        </ul>
-      </nav> -->
 
       <!-- Ações do Usuário e Perfil -->
       <div class="flex items-center gap-3">
-        <!-- Notificações -->
-        <Button
+        <!-- Notificações  @todo features futuras quando o mercado de dev melhorar  -->
+        <!-- <Button
           variant="ghost"
           size="icon"
           class="relative text-muted-foreground hover:text-foreground"
@@ -116,7 +77,7 @@ const handleLogout = async () => {
           <span
             class="absolute top-2 right-2 h-2 w-2 rounded-full bg-destructive"
           />
-        </Button>
+        </Button> -->
 
         <Separator
           orientation="vertical"
@@ -149,7 +110,8 @@ const handleLogout = async () => {
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>
+            <!-- @todo features futuras quando o mercado de dev melhorar -->
+            <!-- <DropdownMenuItem>
               <User class="mr-2 h-4 w-4" />
               <span>Meu Perfil</span>
             </DropdownMenuItem>
@@ -157,7 +119,7 @@ const handleLogout = async () => {
               <Settings class="mr-2 h-4 w-4" />
               <span>Configurações</span>
             </DropdownMenuItem>
-            <DropdownMenuSeparator />
+            <DropdownMenuSeparator /> -->
             <DropdownMenuItem
               class="text-destructive focus:text-destructive"
               @click="handleLogout"

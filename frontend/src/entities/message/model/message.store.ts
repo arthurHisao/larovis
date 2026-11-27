@@ -1,7 +1,7 @@
 import { defineStore } from "pinia";
 import { ref, computed } from "vue";
 import { messageApi } from "../api/message.api";
-import type { ChatMessage, ChatUser, CreateGroupPayload } from "./types";
+import type { ChatMessage, ChatUser, CreateGroupPayload, UpdateGroupPayload } from "./types";
 
 export const useMessageStore = defineStore("messages", () => {
   // 1. Histórico de conversas (usuários e grupos - via HTTP/Banco)
@@ -356,6 +356,50 @@ export const useMessageStore = defineStore("messages", () => {
     delete loadingMoreGroupMessages.value[chatId];
   }
 
+  // Aplica dados do backend ao item do grupo em conversationsList
+  function _applyGroupUpdate(groupId: number, updated: ChatUser) {
+    const idx = conversationsList.value.findIndex(
+      (item) => item.isGroup && (item.chatId ?? item.id) === groupId,
+    );
+    if (idx !== -1) {
+      conversationsList.value[idx] = {
+        ...conversationsList.value[idx],
+        name: updated.name ?? conversationsList.value[idx].name,
+        avatar: updated.avatar ?? null,
+        coverImage: updated.coverImage ?? null,
+        department: updated.department ?? conversationsList.value[idx].department,
+        membersCount: updated.membersCount ?? conversationsList.value[idx].membersCount,
+      };
+    }
+  }
+
+  async function updateGroup(payload: UpdateGroupPayload): Promise<ChatUser> {
+    const updated = await messageApi.updateGroup(payload);
+    // normalizar campos snake_case que o backend pode retornar
+    const normalized: ChatUser = {
+      ...updated,
+      chatId: (updated as any).chat_id ?? (updated as any).chatId ?? updated.id,
+      coverImage: (updated as any).coverImage ?? (updated as any).cover_image ?? null,
+      creatorId: (updated as any).creatorId ?? (updated as any).created_by ?? null,
+      avatar: updated.avatar ?? null,
+    };
+    _applyGroupUpdate(payload.id, normalized);
+    // Invalidar cache de membros para forçar reload na próxima abertura
+    delete groupMembers.value[payload.id];
+    return normalized;
+  }
+
+  async function deleteGroup(chatId: number): Promise<void> {
+    await messageApi.deleteGroup(chatId);
+    // Remove da lista de conversas
+    conversationsList.value = conversationsList.value.filter(
+      (item) => !(item.isGroup && (item.chatId ?? item.id) === chatId),
+    );
+    // Limpa estado local do grupo
+    clearGroupConversation(chatId);
+    delete groupMembers.value[chatId];
+  }
+
   // --- Presença e Leitura ---
 
   function setOnlineUsers(users: ChatUser[]) {
@@ -466,5 +510,7 @@ export const useMessageStore = defineStore("messages", () => {
     fetchGroupMembers,
     groupMembers,
     loadingGroupMembers,
+    updateGroup,
+    deleteGroup,
   };
 });

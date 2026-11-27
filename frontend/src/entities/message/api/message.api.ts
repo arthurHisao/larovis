@@ -182,4 +182,31 @@ export const messageApi = {
   async markAsRead(chatId: number): Promise<void> {
     await api.post(`/chats/${chatId}/read`);
   },
+
+  async updateGroup(payload: UpdateGroupPayload): Promise<ChatUser> {
+    const formData = new FormData();
+    formData.append("name", payload.name);
+
+    payload.memberIds.forEach((id) => {
+      formData.append("member_ids[]", String(id));
+    });
+
+    if (payload.coverImageFile) {
+      formData.append("cover_image", payload.coverImageFile);
+    }
+
+    if (payload.removeCoverImage) {
+      formData.append("remove_cover_image", "1");
+    }
+
+    const response = await api.post(`/chats/${payload.id}/groups`, formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+
+    return response.data?.data ?? response.data;
+  },
+
+  async deleteGroup(chatId: number): Promise<void> {
+    await api.delete(`/chats/${chatId}/groups`);
+  },
 };

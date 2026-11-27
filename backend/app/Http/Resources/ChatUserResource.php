@@ -4,6 +4,7 @@ namespace App\Http\Resources;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Support\Facades\Storage;
 
 class ChatUserResource extends JsonResource
 {
@@ -16,6 +17,11 @@ class ChatUserResource extends JsonResource
     {
         $isGroup = (bool) ($this->is_group ?? false);
 
+        $avatar = $this->avatar;
+        if ($isGroup && $avatar && !str_starts_with($avatar, 'http://') && !str_starts_with($avatar, 'https://') && !str_starts_with($avatar, '/')) {
+            $avatar = Storage::disk('public')->url($avatar);
+        }
+
         return [
             'key'           => $this->row_key ?? ($isGroup ? "group-{$this->id}" : "user-{$this->id}"),
             'id'            => (int) $this->id,
@@ -23,7 +29,9 @@ class ChatUserResource extends JsonResource
             'isGroup'       => $isGroup,
             'name'          => $this->name,
             'email'         => $this->email,
-            'avatar'        => $this->avatar,
+            'avatar'        => $avatar,
+            'coverImage'    => $isGroup ? $avatar : null,
+            'creatorId'     => $isGroup && isset($this->created_by) ? (int) $this->created_by : null,
             'department'    => $isGroup  
                 ? "{$this->members_count} membros"
                 : ($this->department?->slug ?? $this->department ?? null),

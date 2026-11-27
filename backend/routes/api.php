@@ -54,6 +54,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/chats/{chat}/members', [MessageController::class, 'groupMembers']);
     Route::post('/chats/{chat}/read', [MessageController::class, 'markAsRead']);
 
+
+    Route::put('/chats/{chat}/groups', [MessageController::class, 'updateGroup']);
+    Route::post('/chats/{chat}/groups', [MessageController::class, 'updateGroup']);
+    Route::delete('/chats/{chat}/groups', [MessageController::class, 'deleteGroup']);
+
     // Logout
     Route::post('/logout', [AuthController::class, 'logout']);
 });

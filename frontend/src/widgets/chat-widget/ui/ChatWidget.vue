@@ -8,15 +8,26 @@ import { useMessageStore } from "@/entities/message/model/message.store";
 import type {
   ChatMessage as ChatMessageType,
   ChatUser,
+  UpdateGroupPayload,
 } from "@/entities/message/model/types";
 import ChatOnlineUsers from "./ChatOnlineUsers.vue";
 import ChatMessage from "./ChatMessage.vue";
 import ChatCreateGroup from "./ChatCreateGroup.vue";
+import ChatEditGroup from "./ChatEditGroup.vue";
+import ChatDeleteGroup from "./ChatDeleteGroup.vue";
 import { playBellSound } from "@/shared/lib/play-bell-sound.ts";
 
 const isListOpen = ref(false);
 const isCreateGroupOpen = ref(false);
 const isCreatingGroup = ref(false);
+
+const isEditGroupOpen = ref(false);
+const groupToEdit = ref<ChatUser | null>(null);
+const isEditingGroup = ref(false);
+
+const isDeleteGroupOpen = ref(false);
+const groupToDelete = ref<ChatUser | null>(null);
+const isDeletingGroup = ref(false);
 
 const activeChatUserIds = ref<number[]>([]);
 const collapsedChatUserIds = ref<number[]>([]);
@@ -69,6 +80,49 @@ const handleCreateGroup = async (payload: {
     console.error("Erro ao criar grupo:", error);
   } finally {
     isCreatingGroup.value = false;
+  }
+};
+
+const openEditGroup = (group: ChatUser) => {
+  groupToEdit.value = group;
+  isEditGroupOpen.value = true;
+};
+
+const handleUpdateGroup = async (payload: UpdateGroupPayload) => {
+  isEditingGroup.value = true;
+  try {
+    await messageStore.updateGroup(payload);
+    isEditGroupOpen.value = false;
+    // Atualiza o objeto que está sendo editado para refletir no modal caso abra de novo
+    if (groupToEdit.value) {
+      const updated = messageStore.conversationsList.find(
+        (item) => item.isGroup && (item.chatId ?? item.id) === payload.id,
+      );
+      if (updated) groupToEdit.value = { ...updated };
+    }
+  } catch (error) {
+    console.error("Erro ao atualizar grupo:", error);
+  } finally {
+    isEditingGroup.value = false;
+  }
+};
+
+const openDeleteGroup = (group: ChatUser) => {
+  groupToDelete.value = group;
+  isDeleteGroupOpen.value = true;
+};
+
+const handleDeleteGroup = async (groupId: number) => {
+  isDeletingGroup.value = true;
+  try {
+    // Fechar a janela de chat do grupo antes de deletar
+    closeGroupChat(groupId);
+    await messageStore.deleteGroup(groupId);
+    isDeleteGroupOpen.value = false;
+  } catch (error) {
+    console.error("Erro ao deletar grupo:", error);
+  } finally {
+    isDeletingGroup.value = false;
   }
 };
 
@@ -261,6 +315,8 @@ const updateDraft = (userId: number, text: string) => {
               @search="loadConversations"
               @load-more="loadMoreConversations"
               @create-group="isCreateGroupOpen = true"
+              @edit-group="openEditGroup"
+              @delete-group="openDeleteGroup"
             />
           </div>
         </Transition>
@@ -284,6 +340,8 @@ const updateDraft = (userId: number, text: string) => {
       @cancel-reply="cancelReply"
       @update-draft="updateDraft"
       @toggle-collapse="toggleChatCollapse"
+      @edit-group="openEditGroup"
+      @delete-group="openDeleteGroup"
     />
 
     <ChatCreateGroup
@@ -291,6 +349,22 @@ const updateDraft = (userId: number, text: string) => {
       :is-submitting="isCreatingGroup"
       @close="isCreateGroupOpen = false"
       @created="handleCreateGroup"
+    />
+
+    <ChatEditGroup
+      :open="isEditGroupOpen"
+      :group="groupToEdit"
+      :is-submitting="isEditingGroup"
+      @close="isEditGroupOpen = false"
+      @updated="handleUpdateGroup"
+    />
+
+    <ChatDeleteGroup
+      :open="isDeleteGroupOpen"
+      :group="groupToDelete"
+      :is-submitting="isDeletingGroup"
+      @close="isDeleteGroupOpen = false"
+      @confirm="handleDeleteGroup"
     />
   </div>
 </template>

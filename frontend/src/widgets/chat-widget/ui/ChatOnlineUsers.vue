@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from "vue";
 import { LoaderCircle, MoreVertical, Users } from "lucide-vue-next";
+import { useAuthStore } from "@/entities/user/model/auth.store";
 import { useMessageStore } from "@/entities/message/model/message.store";
 import type { ChatUser } from "@/entities/message/model/types";
 import { Avatar, AvatarFallback, AvatarImage } from "@/shared/ui/avatar";
@@ -13,6 +14,7 @@ import {
   DropdownMenuTrigger,
 } from "@/shared/ui/dropdown-menu";
 import { Input } from "@/shared/ui/input";
+import { Edit, Pencil, Trash } from "@lucide/vue";
 
 defineProps<{
   isOpen: boolean;
@@ -24,11 +26,37 @@ const emit = defineEmits<{
   search: [query: string];
   loadMore: [];
   createGroup: [];
+  editGroup: [group: ChatUser];
+  deleteGroup: [group: ChatUser];
 }>();
 
+const authStore = useAuthStore();
 const messageStore = useMessageStore();
 const search = ref("");
 const listContainerRef = ref<HTMLElement | null>(null);
+
+const isGroupAdmin = (group: ChatUser) => {
+  const currentUserId = authStore.user?.id;
+  if (!currentUserId) return false;
+
+  if (typeof group.isAdmin === "boolean") return group.isAdmin;
+  if (typeof (group as any).is_admin === "boolean")
+    return (group as any).is_admin;
+  if (typeof group.isCreator === "boolean") return group.isCreator;
+  if (typeof (group as any).is_creator === "boolean")
+    return (group as any).is_creator;
+
+  const creatorId =
+    group.creatorId ??
+    (group as any).creator_id ??
+    (group as any).created_by;
+
+  if (creatorId !== undefined && creatorId !== null) {
+    return Number(creatorId) === Number(currentUserId);
+  }
+
+  return true;
+};
 
 const getItemKey = (item: ChatUser) =>
   item.key ?? (item.isGroup ? `group-${item.id}` : `user-${item.id}`);
@@ -86,7 +114,7 @@ onBeforeUnmount(() => {
         class="h-8 text-xs bg-muted/40"
       />
 
-      <DropdownMenu>
+      <DropdownMenu :modal="false">
         <DropdownMenuTrigger as-child>
           <Button
             aria-label="Mais opções"
@@ -140,9 +168,13 @@ onBeforeUnmount(() => {
       >
         <div class="flex items-center gap-2.5 min-w-0">
           <div class="relative shrink-0">
-            <Avatar class="h-7 w-7">
+            <Avatar
+              :key="user.avatar ?? 'no-avatar'"
+              class="h-7 w-7"
+            >
               <AvatarImage
-                :src="user.avatar ?? ''"
+                v-if="user.avatar"
+                :src="user.avatar"
                 :alt="user.name"
               />
               <AvatarFallback class="text-xs">
@@ -177,6 +209,40 @@ onBeforeUnmount(() => {
             </span>
           </div>
         </div>
+
+        <DropdownMenu
+          v-if="user.isGroup"
+          :modal="false"
+        >
+          <DropdownMenuTrigger as-child>
+            <Button
+              aria-label="Mais opções"
+              variant="ghost"
+              class="size-6 rounded-full p-0 cursor-pointer shrink-0 hover:bg-gray-400/50"
+              @click.stop
+            >
+              <MoreVertical class="size-3.5" />
+            </Button>
+          </DropdownMenuTrigger>
+
+          <DropdownMenuContent align="end">
+            <DropdownMenuGroup>
+              <DropdownMenuItem @click.stop="emit('editGroup', user)">
+                <Pencil class="h-3.5 w-3.5 mr-1.5" />
+                Editar Grupo
+              </DropdownMenuItem>
+
+              <DropdownMenuItem
+                v-if="isGroupAdmin(user)"
+                class="text-destructive focus:text-destructive"
+                @click.stop="emit('deleteGroup', user)"
+              >
+                <Trash class="h-3.5 w-3.5 mr-1.5 text-destructive" />
+                Deletar Grupo
+              </DropdownMenuItem>
+            </DropdownMenuGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       <div

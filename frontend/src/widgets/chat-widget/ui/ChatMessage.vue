@@ -11,13 +11,19 @@ import {
   ChevronUp,
   EllipsisVertical,
   LoaderCircle,
+  MoreVertical,
+  Pencil,
   Reply,
   Send,
+  Trash2,
   Users,
   X,
 } from "lucide-vue-next";
 
-import type { ChatMessage as ChatMessageType } from "@/entities/message/model/types";
+import type {
+  ChatMessage as ChatMessageType,
+  ChatUser,
+} from "@/entities/message/model/types";
 import { useAuthStore } from "@/entities/user/model/auth.store";
 import { useMessageStore } from "@/entities/message/model/message.store";
 import { Avatar, AvatarFallback, AvatarImage } from "@/shared/ui/avatar";
@@ -63,10 +69,36 @@ const emit = defineEmits<{
   updateDraft: [userId: number, text: string];
   toggleCollapse: [userId: number];
   toggleGroupCollapse: [groupId: number];
+  editGroup: [group: ChatUser];
+  deleteGroup: [group: ChatUser];
 }>();
 
 const authStore = useAuthStore();
 const messageStore = useMessageStore();
+
+const isGroupAdmin = (group?: ChatUser | null) => {
+  if (!group) return false;
+  const currentUserId = authStore.user?.id;
+  if (!currentUserId) return false;
+
+  if (typeof group.isAdmin === "boolean") return group.isAdmin;
+  if (typeof (group as any).is_admin === "boolean")
+    return (group as any).is_admin;
+  if (typeof group.isCreator === "boolean") return group.isCreator;
+  if (typeof (group as any).is_creator === "boolean")
+    return (group as any).is_creator;
+
+  const creatorId =
+    group.creatorId ??
+    (group as any).creator_id ??
+    (group as any).created_by;
+
+  if (creatorId !== undefined && creatorId !== null) {
+    return Number(creatorId) === Number(currentUserId);
+  }
+
+  return true;
+};
 
 const chatContainers: Record<string, HTMLElement | null> = {};
 const isPrependingMessages = ref<Record<string, boolean>>({});
@@ -452,7 +484,15 @@ const handleDraftUpdate = (
         @click="handleToggleGroupCollapse(groupId)"
       >
         <div class="flex items-center gap-2 min-w-0">
-          <Avatar class="h-8 w-8 shrink-0">
+          <Avatar
+            :key="getGroup(groupId)?.avatar ?? 'no-avatar'"
+            class="h-8 w-8 shrink-0"
+          >
+            <AvatarImage
+              v-if="getGroup(groupId)?.avatar"
+              :src="getGroup(groupId)?.avatar ?? ''"
+              :alt="getGroup(groupId)?.name ?? 'Grupo'"
+            />
             <AvatarFallback>
               <Users class="h-4 w-4" />
             </AvatarFallback>
@@ -488,6 +528,41 @@ const handleDraftUpdate = (
           >
             <Users class="h-3.5 w-3.5" />
           </Button>
+
+          <DropdownMenu :modal="false">
+            <DropdownMenuTrigger as-child>
+              <Button
+                variant="ghost"
+                size="icon"
+                class="h-6 w-6 text-muted-foreground hover:text-foreground cursor-pointer"
+                title="Opções do grupo"
+                @click.stop
+              >
+                <MoreVertical class="h-3.5 w-3.5" />
+              </Button>
+            </DropdownMenuTrigger>
+
+            <DropdownMenuContent align="end">
+              <DropdownMenuGroup>
+                <DropdownMenuItem
+                  v-if="getGroup(groupId)"
+                  @click.stop="emit('editGroup', getGroup(groupId)!)"
+                >
+                  <Pencil class="h-3.5 w-3.5 mr-1.5" />
+                  Editar Grupo
+                </DropdownMenuItem>
+
+                <DropdownMenuItem
+                  v-if="getGroup(groupId) && isGroupAdmin(getGroup(groupId))"
+                  class="text-destructive focus:text-destructive"
+                  @click.stop="emit('deleteGroup', getGroup(groupId)!)"
+                >
+                  <Trash2 class="h-3.5 w-3.5 mr-1.5 text-destructive" />
+                  Deletar Grupo
+                </DropdownMenuItem>
+              </DropdownMenuGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
 
           <Button
             variant="ghost"
